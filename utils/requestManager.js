@@ -5,7 +5,7 @@ class RequestManager {
     static async fetch(url) {
         console.log('Fetching content from:', url);
 
-        // const proxy = config.getRandomProxy();
+        const proxy = config.getRandomProxy();
         // console.log(`Using proxy: ${proxy || 'none'}`);
 
         const browser = await chromium.launch({

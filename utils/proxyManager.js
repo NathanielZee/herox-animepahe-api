@@ -1,8 +1,7 @@
 const axios = require('axios');
-
 class ProxyManager {
     static async fetchProxies() {
-        const proxySources = [
+        const proxySources = [ 
             'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=elite',
             'https://www.proxy-list.download/api/v1/get?type=http',
             'https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list.txt',
@@ -33,7 +32,7 @@ class ProxyManager {
                     host: proxy.split(':')[0],
                     port: parseInt(proxy.split(':')[1], 10),
                 },
-                timeout: 15000, // 15-second timeout
+                timeout: 20000, // 20-second timeout
             });
             console.log(`Proxy ${proxy} is working. IP:`, response.data.origin);
             return true;

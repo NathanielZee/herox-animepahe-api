@@ -1,5 +1,4 @@
 const BaseScraper = require('../scrapers/baseScraper');
-const ApiScraper = require('../scrapers/apiScraper');
 const Config = require('../utils/config');
 
 class HomeModel extends BaseScraper {
@@ -7,7 +6,7 @@ class HomeModel extends BaseScraper {
         try {
             // First try to scrape the API endpoint
             console.log('Attempting to scrape API data');
-            const apiData = await ApiScraper.fetchApiData(`api?m=airing&page=${page}`);
+            const apiData = await BaseScraper.fetchApiData('/api?m=airing', page);
 
             console.log("API DATA", apiData);
             
@@ -78,7 +77,7 @@ class HomeModel extends BaseScraper {
         $('.episode-list .episode-wrap').each((i, element) => {
             featuredAnime.push({
                 title: $(element).find('.episode .episode-title-warap a').text().trim(),
-                episodeNumber: $(element).find('.episode .episode-number').text().trim(),
+                episode: $(element).find('.episode .episode-number').text().trim(),
                 image: $(element).find('.episode .episode-snapshot img').attr('src'),
                 link: $(element).find('a').attr('href')
             });

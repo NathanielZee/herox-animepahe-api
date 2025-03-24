@@ -2,10 +2,18 @@ const { chromium } = require('playwright');
 const Config = require('../utils/config');
 
 class ApiScraper {
-    static async fetchApiData() {
+    static async fetchApiData(endpoint, pageIndex) {
         console.log('Fetching main page and intercepting API requests...');
+
+        const proxy = Config.getRandomProxy();
+        // console.log(`Using proxy: ${proxy || 'none'}`);
         
-        const browser = await chromium.launch({ headless: true });
+        const browser = await chromium.launch({ 
+            headless: true,
+            // proxy: proxy ? {
+            //     server: proxy,
+            // } : undefined,
+        });
         const page = await browser.newPage();
 
         let jsonResponse = null;
@@ -14,7 +22,7 @@ class ApiScraper {
             try {
                 const url = response.url();
                 console.log(url);
-                if (url.includes('/api?m=airing')) {
+                if (url.includes(endpoint)) {
                     console.log(`Intercepted API response: ${url}`);
                     
                     if (response.status() === 200 && response.headers()['content-type'].includes('application/json')) {
@@ -28,9 +36,9 @@ class ApiScraper {
         }); 
 
         try {
-            await page.goto(Config.getUrl('home'), { waitUntil: 'domcontentloaded', timeout: 120000 });
+            await page.goto(`${Config.getUrl('home')}?page=${pageIndex}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
             
-            await page.waitForTimeout(10000); 
+            await page.waitForTimeout(30000); 
 
             console.log('Waiting for selector..');
 
