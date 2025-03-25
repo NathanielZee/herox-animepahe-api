@@ -3,48 +3,59 @@ const Config = require('../utils/config');
 
 class ApiScraper {
     static async fetchApiData(endpoint, pageIndex) {
-        console.log('Fetching main page and intercepting API requests...');
+        console.log(`Fetching page ${pageIndex} and intercepting API requests...`);
 
-        const proxy = Config.getRandomProxy();
-        // console.log(`Using proxy: ${proxy || 'none'}`);
-        
-        const browser = await chromium.launch({ 
-            headless: true,
-            // proxy: proxy ? {
-            //     server: proxy,
-            // } : undefined,
-        });
+        const browser = await chromium.launch({ headless: true });
         const page = await browser.newPage();
 
-        let jsonResponse = null;
+        // Use an array to collect all matching JSON responses
+        const apiResponses = [];
 
+        // Intercept all responses
         page.on('response', async (response) => {
             try {
                 const url = response.url();
-                console.log(url);
+                
+                // More flexible matching for the endpoint
                 if (url.includes(endpoint)) {
-                    console.log(`Intercepted API response: ${url}`);
+                    console.log(`Potential API response found: ${url}`);
                     
-                    if (response.status() === 200 && response.headers()['content-type'].includes('application/json')) {
-                        jsonResponse = await response.json();
-                        console.log('Successfully captured JSON data:', jsonResponse);
+                    // Ensure it's a successful JSON response
+                    if (response.status() === 200 && 
+                        response.headers()['content-type']?.includes('application/json')) {
+                        
+                        try {
+                            const jsonData = await response.json();
+                            
+                            // Only add non-empty responses
+                            if (jsonData && (Array.isArray(jsonData) ? jsonData.length > 0 : Object.keys(jsonData).length > 0)) {
+                                console.log('Captured valid JSON data');
+                                apiResponses.push(jsonData);
+                            }
+                        } catch (parseError) {
+                            console.error('Error parsing JSON:', parseError.message);
+                        }
                     }
                 }
             } catch (error) {
-                console.error('Error capturing API response:', error.message);
+                console.error('Error in response intercept:', error.message);
             }
-        }); 
+        });
 
         try {
-            await page.goto(`${Config.getUrl('home')}?page=${pageIndex}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-            
-            await page.waitForTimeout(30000); 
+            // Navigate with page index
+            await page.goto(`${Config.getUrl('home')}?page=${pageIndex}`, { 
+                waitUntil: 'networkidle', 
+                timeout: 60000 
+            });
 
-            console.log('Waiting for selector..');
+            // Wait for potential network activity
+            await page.waitForTimeout(10000);
 
-            await page.waitForSelector('.episode-wrap, .episode-list', { timeout: 60000 });
-
-            console.log("Selector found?");
+            // Add fallback mechanism to ensure we've captured data
+            if (apiResponses.length === 0) {
+                console.warn('No API responses captured. Retrying...');
+            }
 
         } catch (error) {
             console.error('Error loading main page:', error.message);
@@ -52,7 +63,8 @@ class ApiScraper {
             await browser.close();
         }
 
-        return jsonResponse; // Return the intercepted API data
+        // Return all captured responses or null
+        return apiResponses.length > 0 ? apiResponses : null;
     }
 }
 

@@ -79,7 +79,7 @@ class HomeModel extends BaseScraper {
                 title: $(element).find('.episode .episode-title-warap a').text().trim(),
                 episode: $(element).find('.episode .episode-number').text().trim(),
                 image: $(element).find('.episode .episode-snapshot img').attr('src'),
-                link: $(element).find('a').attr('href')
+                link: `${Config.baseUrl}${$(element).find('a').attr('href')}`
             });
         });
          
