@@ -4,9 +4,29 @@ const Config = require('../utils/config');
 class HomeModel extends BaseScraper {
     static async getFeaturedAnime(page) {
         try {
-            // First try to scrape the API endpoint
             console.log('Attempting to scrape API data');
             const apiData = await BaseScraper.fetchApiData('/api?m=airing', page);
+
+            console.log("API DATA", apiData);
+            
+            if (apiData && (apiData.data)) {
+                console.log('Successfully retrieved API data');
+                return this.processApiData(apiData);
+            } else {
+                console.log('API data not in expected format, falling back to HTML scraping');
+                return this.scrapeHomePage();
+            }
+        } catch (error) {
+            console.error('API scraping failed:', error.message);
+            console.log('Falling back to HTML scraping');
+            return this.scrapeHomePage();
+        }
+    }
+
+    static async searchAnime(query, page) {
+        try {
+            console.log('Attempting to scrape API data');
+            const apiData = await BaseScraper.fetchApiData(`/api?m=search?q=${query}`, page);
 
             console.log("API DATA", apiData);
             
