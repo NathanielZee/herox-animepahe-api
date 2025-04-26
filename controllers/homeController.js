@@ -1,11 +1,11 @@
 const HomeModel = require('../models/homeModel');
 
 class HomeController {
-    static async getFeaturedAnime(req, res) {
+    static async getAiringAnime(req, res) {
         try {
             const page = req.query.page || 1;
-            const featuredAnime = await HomeModel.getFeaturedAnime(page);
-            res.json(featuredAnime);
+            const airingAnime = await HomeModel.getAiringAnime(page);
+            res.json(airingAnime);
         } catch (error) {
             console.log(error);
             res.status(500).json({ error: 'Failed to scrape homepage' });
@@ -16,8 +16,8 @@ class HomeController {
         try {
             const query = req.query.q;
             const page = req.query.page || 1;
-            const featuredAnime = await HomeModel.searchAnime(query, page);
-            res.json(featuredAnime);
+            const airingAnime = await HomeModel.searchAnime(query, page);
+            res.json(airingAnime);
         } catch (error) {
             console.log(error);
             res.status(500).json({ error: 'Failed to scrape homepage' });

@@ -32,10 +32,10 @@ async function testHomeModel() {
     try {
         console.log('Testing HomeModel...');
 
-        const featuredAnime = await HomeModel.getFeaturedAnime();
-        console.log('Featured Anime:', featuredAnime);
+        const airingAnime = await HomeModel.getAiringAnime();
+        console.log('Featured Anime:', airingAnime);
 
-        if (featuredAnime.length > 0) {
+        if (airingAnime.length > 0) {
             console.log('✅ Test passed: Data was successfully scraped.');
         } else {
             console.log('❌ Test failed: No data was scraped.');

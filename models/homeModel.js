@@ -3,7 +3,7 @@ const Config = require('../utils/config');
 const ApiClient = require('../scrapers/apiClient');
 
 class HomeModel extends BaseScraper {
-    static async getFeaturedAnime(page) {
+    static async getAiringAnime(page) {
         try {
             console.log('Attempting to scrape API data');
             const apiData = await ApiClient.getData("airing", page);
@@ -150,9 +150,9 @@ class HomeModel extends BaseScraper {
         const url = Config.getUrl('home');
         const $ = await this.fetchPage(url);
         
-        const featuredAnime = [];
+        const airingAnime = [];
         $('.episode-list .episode-wrap').each((i, element) => {
-            featuredAnime.push({
+            airingAnime.push({
                 title: $(element).find('.episode .episode-title-warap a').text().trim(),
                 episode: $(element).find('.episode .episode-number').text().trim(),
                 image: $(element).find('.episode .episode-snapshot img').attr('src'),
@@ -160,15 +160,15 @@ class HomeModel extends BaseScraper {
             });
         });
          
-        console.log(`Scraped ${featuredAnime.length} anime items from HTML`);
+        console.log(`Scraped ${airingAnime.length} anime items from HTML`);
 
-        if (featuredAnime.length === 0) {
+        if (airingAnime.length === 0) {
             console.log('No items found');
 
             return [];
         }
         
-        return featuredAnime;
+        return airingAnime;
     }
 }
 
