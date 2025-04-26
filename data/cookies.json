@@ -1,0 +1,75 @@
+{
+  "timestamp": 1745647818760,
+  "cookies": [
+    {
+      "name": "__ddg8_",
+      "value": "knv27rSL4etIPVEp",
+      "domain": ".animepahe.ru",
+      "path": "/",
+      "expires": 1745649007.306676,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__ddg10_",
+      "value": "1745647804",
+      "domain": ".animepahe.ru",
+      "path": "/",
+      "expires": 1745649007.360504,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__ddg9_",
+      "value": "105.112.194.178",
+      "domain": ".animepahe.ru",
+      "path": "/",
+      "expires": 1745649007.36087,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__ddgid_",
+      "value": "eddUzo3d0RlGy8dV",
+      "domain": ".animepahe.ru",
+      "path": "/",
+      "expires": 1777183807.361315,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__ddgmark_",
+      "value": "6qt8MHUVcBTAYNM4",
+      "domain": ".animepahe.ru",
+      "path": "/",
+      "expires": 1745734207.361826,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__ddg2",
+      "value": "6PHImnrPpQYgmRxn",
+      "domain": ".check.ddos-guard.net",
+      "path": "/",
+      "expires": 1777183811.705415,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__ddg2_",
+      "value": "6PHImnrPpQYgmRxn",
+      "domain": ".animepahe.ru",
+      "path": "/",
+      "expires": 1777183811.708124,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ]
+}

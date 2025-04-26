@@ -1,11 +1,12 @@
 const BaseScraper = require('../scrapers/baseScraper');
 const Config = require('../utils/config');
+const ApiClient = require('../scrapers/apiClient');
 
 class HomeModel extends BaseScraper {
     static async getFeaturedAnime(page) {
         try {
             console.log('Attempting to scrape API data');
-            const apiData = await BaseScraper.fetchApiData('/api?m=airing', page);
+            const apiData = await ApiClient.getData("airing", page);
 
             console.log("API DATA", apiData);
             
@@ -26,13 +27,13 @@ class HomeModel extends BaseScraper {
     static async searchAnime(query, page) {
         try {
             console.log('Attempting to scrape API data');
-            const apiData = await BaseScraper.fetchApiData(`/api?m=search?q=${query}`, page);
+            const apiData = await ApiClient.getData("search", { query: query }, page);
 
             console.log("API DATA", apiData);
             
             if (apiData && (apiData.data)) {
                 console.log('Successfully retrieved API data');
-                return this.processApiData(apiData);
+                return this.processApiData(apiData, 'search');
             } else {
                 console.log('API data not in expected format, falling back to HTML scraping');
                 return this.scrapeHomePage();
@@ -44,9 +45,9 @@ class HomeModel extends BaseScraper {
         }
     }
     
-    static processApiData(apiData) {
-        console.log('Processing API data');
-
+    static processApiData(apiData, type = 'airing') {
+        console.log(`Processing API data of type: ${type}`);
+        
         const items = apiData.data || [];
         
         if (!Array.isArray(items)) {
@@ -54,7 +55,28 @@ class HomeModel extends BaseScraper {
             throw new Error('Unexpected API response format');
         }
         
-        const paginationInfo = {
+        const paginationInfo = this._extractPaginationInfo(apiData);
+
+        const dataProcessors = {
+            'airing': this._processAiringData,
+            'search': this._processSearchData,
+            'details': this._processDetailsData,
+        };
+        
+        const processor = dataProcessors[type] || this._processGenericData;
+        
+        const processedData = processor(items);
+        
+        if (processedData.length > 0) {
+            console.log(`Processed ${processedData.length} items of type: ${type}`);
+            console.log("Sample:", processedData[0]);
+        }
+        
+        return { paginationInfo, data: processedData };
+    }
+    
+    static _extractPaginationInfo(apiData) {
+        return {
             total: apiData.total || null,
             perPage: apiData.per_page || null,
             currentPage: apiData.current_page || null,
@@ -64,28 +86,63 @@ class HomeModel extends BaseScraper {
             from: apiData.from || null,
             to: apiData.to || null,
         };
-
-        const featuredAnime = items.map(item => ({
-            id: item.id || null, 
+    }
+    
+    static _processAiringData(items) {
+        return items.map(item => ({
+            id: item.id || null,
             anime_id: item.anime_id || null,
             title: item.anime_title || null,
             episode: item.episode || null,
             episode2: item.episode2 || null,
             edition: item.edition || null,
             fansub: item.fansub || null,
-            image: item.snapshot ||null,
+            image: item.snapshot || null,
             disc: item.disc || null,
             session: item.session || null,
             link: (item.session ? `${Config.getUrl('animeInfo', item.session)}` : '') || null,
-            filler: item.filler || null, 
+            filler: item.filler || null,
             created_at: item.created_at || null,
             completed: item.completed || 1
         }));
-        
-        console.log("Featured Anime:", featuredAnime);
-
-        console.log(`Processed ${featuredAnime.length} anime items from API`);
-        return { paginationInfo, data: featuredAnime };
+    }
+    
+    static _processSearchData(items) {
+        return items.map(item => ({
+            id: item.id || null,
+            title: item.title || null,
+            status: item.status || null,
+            type: item.type || null,
+            episodes: item.episodes || null,
+            score: item.score || null,
+            year: item.year || null,
+            season: item.season || null,
+            poster: item.poster || null,
+            session: item.session || null,
+            link: (item.session ? `${Config.getUrl('animeInfo', item.session)}` : '') || null,
+        }));
+    }
+    
+    static _processDetailsData(items) {
+        // Do later
+        return items.map(item => ({
+            id: item.id || null,
+            title: item.title || null,
+            description: item.description || null,
+            // other fields as needed
+        }));
+    }
+    
+    // For unknown data types 
+    static _processGenericData(items) {
+        return items.map(item => {
+            // Clone the item but ensure no null property values
+            const processed = {};
+            Object.keys(item).forEach(key => {
+                processed[key] = item[key] || null;
+            });
+            return processed;
+        });
     }
     
     static async scrapeHomePage() {

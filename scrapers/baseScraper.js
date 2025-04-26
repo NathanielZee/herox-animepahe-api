@@ -1,6 +1,6 @@
 const cheerio = require('cheerio');
 const RequestManager = require('../utils/requestManager');
-const ApiScraper = require('./apiScraper');
+const ApiClient = require('./apiClient');
 
 class BaseScraper {
     static async fetchPage(url) {
@@ -8,9 +8,9 @@ class BaseScraper {
         return cheerio.load(html);
     }
     
-    static async fetchApiData(endpoint, page = 1) {
-        return await ApiScraper.fetchApiData(endpoint, page);
-    }
+    // static async fetchApiData(endpoint, page = 1) {
+    //     return await ApiScraper.fetchApiData(endpoint, page);
+    // }
     
     static extractId(url) {
         const match = url.match(/\/([^\/]+)(?:\/|$)/);
