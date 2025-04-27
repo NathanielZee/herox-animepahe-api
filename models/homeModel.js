@@ -76,17 +76,28 @@ class HomeModel extends BaseScraper {
     }
     
     static _extractPaginationInfo(apiData) {
+        const { 
+            total, per_page, current_page, last_page, 
+            next_page_url, prev_page_url, from, to 
+        } = apiData;
+        
         return {
-            total: apiData.total || null,
-            perPage: apiData.per_page || null,
-            currentPage: apiData.current_page || null,
-            lastPage: apiData.last_page || null,
-            nextPageUrl: apiData.next_page_url || null,
-            prevPageUrl: apiData.prev_page_url || null,
-            from: apiData.from || null,
-            to: apiData.to || null,
+            ...(total != null && { total }),
+            ...(per_page != null && { perPage: per_page }),
+            ...(current_page != null && { currentPage: current_page }),
+            ...(last_page != null && { lastPage: last_page }),
+            ...(next_page_url != null && { 
+                nextPageUrl: next_page_url.replace(
+                    new RegExp(`^(${Config.baseUrl}|/)`),  // Match both baseUrl AND leading slash
+                    Config.hostUrl
+                )
+            }),
+            ...(prev_page_url != null && { prevPageUrl: prev_page_url }),
+            ...(from != null && { from }),
+            ...(to != null && { to })
         };
-    }
+    }   
+
     
     static _processAiringData(items) {
         return items.map(item => ({

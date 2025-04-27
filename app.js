@@ -14,6 +14,14 @@ try {
     process.exit(1); // Exit if configuration is invalid
 }
 
+// Middleware to set hostUrl ONCE based on first incoming request
+app.use((req, res, next) => {
+    const protocol = req.protocol;
+    const host = req.headers.host;
+    Config.setHostUrl(protocol, host);
+    next();
+});
+
 // Use Routes
 app.use('/api', homeRoutes);
 app.use('/api', queueRoutes);

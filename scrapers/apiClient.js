@@ -83,6 +83,7 @@ class ApiClient {
 
     async fetchApiData(endpoint, params = {}) {
         await this.initialize();
+        console.log(endpoint, params);
         
         try {
             // Load cookies
