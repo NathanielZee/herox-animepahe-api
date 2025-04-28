@@ -5,8 +5,8 @@ const ApiClient = require('../scrapers/apiClient');
 class HomeModel extends BaseScraper {
     static async getAiringAnime(page) {
         try {
-            console.log('Attempting to scrape API data');
-            const apiData = await ApiClient.getData("airing", page);
+            console.log('Attempting to scrape API data on page', page);
+            const apiData = await ApiClient.getData("airing", { page });
 
             console.log("API DATA", apiData);
             
@@ -26,8 +26,8 @@ class HomeModel extends BaseScraper {
 
     static async searchAnime(query, page) {
         try {
-            console.log('Attempting to scrape API data');
-            const apiData = await ApiClient.getData("search", { query: query }, page);
+            console.log('Attempting to scrape API data on page', page);
+            const apiData = await ApiClient.getData("search", { query, page });
 
             console.log("API DATA", apiData);
             
@@ -55,7 +55,7 @@ class HomeModel extends BaseScraper {
             throw new Error('Unexpected API response format');
         }
         
-        const paginationInfo = this._extractPaginationInfo(apiData);
+        const paginationInfo = this._extractPaginationInfo(apiData, type);
 
         const dataProcessors = {
             'airing': this._processAiringData,
@@ -75,7 +75,7 @@ class HomeModel extends BaseScraper {
         return { paginationInfo, data: processedData };
     }
     
-    static _extractPaginationInfo(apiData) {
+    static _extractPaginationInfo(apiData, type) {
         const { 
             total, per_page, current_page, last_page, 
             next_page_url, prev_page_url, from, to 
@@ -90,7 +90,7 @@ class HomeModel extends BaseScraper {
                 nextPageUrl: next_page_url.replace(
                     new RegExp(`^(${Config.baseUrl}|/)`),  // Match both baseUrl AND leading slash
                     Config.hostUrl
-                )
+                ).replace('api?', `api/${type}?`)
             }),
             ...(prev_page_url != null && { prevPageUrl: prev_page_url }),
             ...(from != null && { from }),

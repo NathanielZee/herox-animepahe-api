@@ -185,9 +185,9 @@ class ApiClient {
         return this.fetchApiData('/api', { m: 'airing', page });
     }
 
-    async fetchSearchData(query) {
+    async fetchSearchData(query, page) {
         console.log("Trying to search for", query);
-        return this.fetchApiData('/api', { m: 'search', q: query });
+        return this.fetchApiData('/api', { m: 'search', q: query, page });
     }
     
     // Convenience methods using direct scraping
@@ -254,7 +254,7 @@ class ApiClient {
                 if (type === 'airing') {
                     return await this.fetchAiringData(params.page || 1);
                 } else if (type === 'search') {
-                    return await this.fetchSearchData(params.query);
+                    return await this.fetchSearchData(params.query, params.page);
                 }
             } else {
                 if (type === 'airing') {
