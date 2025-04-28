@@ -10,6 +10,17 @@ class AnimeInfoController {
             res.status(500).json({ error: 'Failed to scrape anime info' });
         }
     }
+    static async getAnimeReleases(req, res) {
+        try {
+            const animeId = req.params.id;
+            const sort = req.query.sort || 'episode_desc';
+            const page = req.query.page || 1; // Default page
+            const animeReleases = await AnimeInfoModel.getAnimeReleases(animeId, sort, page);
+            res.json(animeReleases);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to scrape anime releases' });
+        }
+    }
 }
 
 module.exports = AnimeInfoController;

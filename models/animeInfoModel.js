@@ -1,16 +1,51 @@
 const BaseScraper = require('../scrapers/baseScraper');
+const DataProcessor = require('../utils/dataProcessor');
+const ApiClient = require('../scrapers/apiClient');
 const Config = require('../utils/config');
 
-class AnimeInfoModel {
+class AnimeInfoModel extends BaseScraper {
     static async getAnimeInfo(animeId) {
-        const url = Config.getUrl('animeInfo', animeId); // Get the anime info URL
-        const $ = await BaseScraper.fetchPage(url);
-        return {
-            title: $('.anime-title').text(),
-            description: $('.anime-description').text(),
-            rating: $('.anime-rating').text(),
-            episodes: $('.anime-episodes').text(),
-        };
+        try {
+            console.log('Attempting to scrape API data on page', page);
+            const apiData = await ApiClient.getData("animeInfo", { page });
+
+            console.log("API DATA", apiData);
+            
+            if (apiData && (apiData.data)) {
+                console.log('Successfully retrieved API data');
+                return DataProcessor.processApiData(apiData);
+            } else {
+                console.log('API data not in expected format, falling back to HTML scraping');
+                return this.scrapeInfoPage();
+            }
+        } catch (error) {
+            console.error('API scraping failed:', error.message);
+            console.log('Falling back to HTML scraping');
+            return this.scrapeInfoPage();
+        }
+    }
+    static async getAnimeReleases(animeId, sort, page) {
+        try {
+            console.log('Attempting to scrape API data on page', page);
+            const apiData = await ApiClient.getData("releases", { animeId, sort, page });
+
+            console.log("API DATA", apiData);
+            
+            if (apiData && (apiData.data)) {
+                console.log('Successfully retrieved API data');
+                return DataProcessor.processApiData(apiData);
+            } else {
+                console.log('API data not in expected format, falling back to HTML scraping');
+                return this.scrapeInfoPage();
+            }
+        } catch (error) {
+            console.error('API scraping failed:', error.message);
+            console.log('Falling back to HTML scraping');
+            return this.scrapeInfoPage();
+        }
+    }
+    static async scrapeInfoPage() {
+        console.log('Sounds like a drag to implement this now. Try again or something...');    
     }
 }
 

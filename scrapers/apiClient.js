@@ -89,7 +89,6 @@ class ApiClient {
             // Load cookies
             const cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
             
-            // Create cookie header
             const cookieHeader = cookieData.cookies
                 .map(cookie => `${cookie.name}=${cookie.value}`)
                 .join('; ');
@@ -108,10 +107,18 @@ class ApiClient {
                     'Cookie': cookieHeader,
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                     'Referer': Config.getUrl('home'),
+                    'Origin': Config.getUrl('home'),
                     'Accept': 'application/json, text/plain, */*',
                     'Accept-Language': 'en-US,en;q=0.9'
                 }
             });
+
+            console.log(response.data);
+
+            /*
+                PART OF THE THINGS I NEED TO DO INCLUDE ADDING THE FETCHING MECHANISM IN REQUEST MANAGER. ANOTHER THING FIX THE ABOVE ISSUE AND LASTLY JUST LIKE HOW ONE CAN CHOOSE IF ONE PREFERS FETCH, ONE SHOULD ALSO BE ABLE TO re-GET THE COOKIES THROUGH PARAMS
+            */
+
             
             return response.data;
             
@@ -246,7 +253,6 @@ class ApiClient {
         return searchResults;
     }
     
-    // Factory method to get data with fallback
     async getData(type, params, preferFetch = true) {
         try {
             // Try the preferred method first
@@ -255,7 +261,12 @@ class ApiClient {
                     return await this.fetchAiringData(params.page || 1);
                 } else if (type === 'search') {
                     return await this.fetchSearchData(params.query, params.page);
+                } else if (type === 'animeInfo') {
+                    return await this.fetchApiData('/api', { m: 'anime', id: params.id });
+                } else if (type === 'releases') {
+                    return await this.fetchApiData('/api', { m: 'releases', id: params.animeId, sort: params.sort, page: params.page });
                 }
+
             } else {
                 if (type === 'airing') {
                     return await this.scrapeAiringData(params.page || 1);

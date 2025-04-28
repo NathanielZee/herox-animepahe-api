@@ -11,7 +11,7 @@ try {
     console.log('Configuration is valid.');
 } catch (error) {
     console.error(error.message);
-    process.exit(1); // Exit if configuration is invalid
+    process.exit(1); 
 }
 
 // Middleware to set hostUrl ONCE based on first incoming request

@@ -15,6 +15,7 @@ class HomeController {
     static async searchAnime(req, res) {
         try {
             const query = req.query.q;
+            // PAGE HAS NO EFFECT ATM, JUST THERE INCASE
             const page = req.query.page || 1;
             const airingAnime = await HomeModel.searchAnime(query, page);
             res.json(airingAnime);
