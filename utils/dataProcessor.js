@@ -104,7 +104,7 @@ class DataProcessor {
             audio: item.audio || null,
             duration: item.duration || null,
             session: item.session || null,
-            link: (item.session ? `${Config.getUrl('play', item.session)}` : '') || null,
+            link: (item.session ? `${Config.getUrl('play', item._id, item.session)}` : '') || null,
             filler: item.filler || null,
             created_at: item.created_at || null
         }))

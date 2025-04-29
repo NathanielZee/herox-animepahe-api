@@ -31,12 +31,12 @@ class Config {
         this.proxies = newProxies;
     }
 
-    getUrl(section, id = '') {
+    getUrl(section, id = '', episodeId = '') {
         const paths = {
             home: '/',
             queue: '/queue',
             animeInfo: `/anime/${id}`, 
-            play: `/play/${id}`
+            play: `/play/${id}/${episodeId}`
         };
 
         if (!paths[section]) {
