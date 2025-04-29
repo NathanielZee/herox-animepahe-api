@@ -33,7 +33,7 @@ class AnimeInfoModel extends BaseScraper {
             
             if (apiData && (apiData.data)) {
                 console.log('Successfully retrieved API data');
-                return DataProcessor.processApiData(apiData);
+                return DataProcessor.processApiData(apiData, "releases");
             } else {
                 console.log('API data not in expected format, falling back to HTML scraping');
                 return this.scrapeInfoPage();

@@ -36,6 +36,7 @@ class Config {
             home: '/',
             queue: '/queue',
             animeInfo: `/anime/${id}`, 
+            play: `/play/${id}`
         };
 
         if (!paths[section]) {

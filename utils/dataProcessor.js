@@ -16,6 +16,7 @@ class DataProcessor {
         const dataProcessors = {
             'airing': this._processAiringData,
             'search': this._processSearchData,
+            'releases': this._processReleaseData,
             'details': this._processDetailsData,
         };
         
@@ -44,7 +45,7 @@ class DataProcessor {
             ...(last_page != null && { lastPage: last_page }),
             ...(next_page_url != null && { 
                 nextPageUrl: next_page_url.replace(
-                    new RegExp(`^(${Config.baseUrl}|/)`),  // Match both baseUrl AND leading slash
+                    new RegExp(`^(${Config.baseUrl}|/)`),
                     Config.hostUrl
                 ).replace('api?', `api/${type}?`)
             }),
@@ -88,6 +89,25 @@ class DataProcessor {
             session: item.session || null,
             link: (item.session ? `${Config.getUrl('animeInfo', item.session)}` : '') || null,
         }));
+    }
+
+    static _processReleaseData(items) {
+        return items.map(item => ({
+            id: item.id || null,
+            anime_id: item.anime_id || null,
+            episode: item.episode || null,
+            episode2: item.episode2 || null,
+            edition: item.edition || null,
+            title: item.title || null,
+            snapshot: item.snapshot || null,
+            disc: item.disc || null,
+            audio: item.audio || null,
+            duration: item.duration || null,
+            session: item.session || null,
+            link: (item.session ? `${Config.getUrl('play', item.session)}` : '') || null,
+            filler: item.filler || null,
+            created_at: item.created_at || null
+        }))
     }
     
     static _processDetailsData(items) {

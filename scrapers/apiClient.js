@@ -113,8 +113,6 @@ class ApiClient {
                 }
             });
 
-            console.log(response.data);
-
             /*
                 PART OF THE THINGS I NEED TO DO INCLUDE ADDING THE FETCHING MECHANISM IN REQUEST MANAGER. ANOTHER THING FIX THE ABOVE ISSUE AND LASTLY JUST LIKE HOW ONE CAN CHOOSE IF ONE PREFERS FETCH, ONE SHOULD ALSO BE ABLE TO re-GET THE COOKIES THROUGH PARAMS
             */
@@ -264,7 +262,7 @@ class ApiClient {
                 } else if (type === 'animeInfo') {
                     return await this.fetchApiData('/api', { m: 'anime', id: params.id });
                 } else if (type === 'releases') {
-                    return await this.fetchApiData('/api', { m: 'releases', id: params.animeId, sort: params.sort, page: params.page });
+                    return await this.fetchApiData('/api', { m: 'release', id: params.animeId, sort: params.sort, page: params.page });
                 }
 
             } else {
