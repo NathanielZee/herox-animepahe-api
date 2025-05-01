@@ -244,6 +244,7 @@ class ApiClient {
     }
     
     async getData(type, params, preferFetch = true) {
+        console.log(type);
         try {
             // Try the preferred method first
             if (preferFetch) {

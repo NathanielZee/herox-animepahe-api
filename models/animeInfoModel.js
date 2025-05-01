@@ -31,19 +31,26 @@ class AnimeInfoModel extends BaseScraper {
             const apiData = await ApiClient.getData("releases", { animeId, sort, page });
 
             console.log("API DATA", apiData);
+
+            if(apiData && typeof apiData === 'object' && !apiData.data) {
+                console.log("API data is empty");
+    
+                apiData.data = [];
+            }    
             
-            if (apiData && (apiData.data)) {
+            if (apiData) {
                 apiData.data.map(item => item._id = animeId);
                 console.log('Successfully retrieved API data', apiData);
                 return DataProcessor.processApiData(apiData, "releases");
             } else {
-                console.log('API data not in expected format, falling back to HTML scraping', apiData);
-                return this.scrapeInfoPage();
+                console.log('API data not in expected format, falling back to HTML scraping');
+                // return this.scrapeInfoPage();
             }
         } catch (error) {
+            console.log(error);
             console.error('API scraping failed:', error.message);
             console.log('Falling back to HTML scraping');
-            return this.scrapeInfoPage();
+            // return this.scrapeInfoPage();
         }
     }
     static async scrapeInfoPage(animeId, type) {

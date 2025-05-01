@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const cheerio = require('cheerio');
 const axios = require('axios');
 const Config = require('./config');
 const fs = require('fs').promises;
@@ -7,9 +8,16 @@ class RequestManager {
     static async fetch(url, type) {
         if (type === 'json') {
             this.fetchApiData(url, null, null);
-        } else {
+        } else if (type === 'easyscrape') {
+            this.scrapeWithCheerio(url);
+        }
+        else {
             this.scrapeHtml(url);
         }
+    }
+
+    static async scrapeWithCheerio(url) {
+        
     }
 
     static async scrapeHtml(url) {
