@@ -18,6 +18,7 @@ class AnimeInfoController {
             const animeReleases = await AnimeInfoModel.getAnimeReleases(animeId, sort, page);
             res.json(animeReleases);
         } catch (error) {
+            console.log(error);
             res.status(500).json({ error: 'Failed to scrape anime releases' });
         }
     }

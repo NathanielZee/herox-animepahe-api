@@ -3,6 +3,7 @@ const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
+const RequestManager = require("../utils/requestManager");
 
 class ApiClient {
     constructor() {
@@ -98,27 +99,14 @@ class ApiClient {
             
             console.log(`Fetching API data from: ${url}`);
             
-            // Make the request with axios
-            const response = await axios({
-                method: 'get',
-                url: url,
-                params: params,
-                headers: {
-                    'Cookie': cookieHeader,
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                    'Referer': Config.getUrl('home'),
-                    'Origin': Config.getUrl('home'),
-                    'Accept': 'application/json, text/plain, */*',
-                    'Accept-Language': 'en-US,en;q=0.9'
-                }
-            });
+            const data = RequestManager.fetchApiData(url, params, cookieHeader);
 
             /*
-                PART OF THE THINGS I NEED TO DO INCLUDE ADDING THE FETCHING MECHANISM IN REQUEST MANAGER. ANOTHER THING FIX THE ABOVE ISSUE AND LASTLY JUST LIKE HOW ONE CAN CHOOSE IF ONE PREFERS FETCH, ONE SHOULD ALSO BE ABLE TO re-GET THE COOKIES THROUGH PARAMS
+                LASTLY JUST LIKE HOW ONE CAN CHOOSE IF ONE PREFERS FETCH, ONE SHOULD ALSO BE ABLE TO re-GET THE COOKIES THROUGH PARAMS
             */
 
             
-            return response.data;
+            return data;
             
         } catch (error) {
             console.error('Error fetching API data:', error.message);
@@ -194,6 +182,10 @@ class ApiClient {
         console.log("Trying to search for", query);
         return this.fetchApiData('/api', { m: 'search', q: query, page });
     }
+
+    async fetchAnimeRelease(id, sort, page) {
+        return this.fetchApiData('/api', { m: 'release', id, sort, page });
+    }
     
     // Convenience methods using direct scraping
     async scrapeAiringData(page = 1) {
@@ -262,7 +254,7 @@ class ApiClient {
                 } else if (type === 'animeInfo') {
                     return await this.fetchApiData('/api', { m: 'anime', id: params.id });
                 } else if (type === 'releases') {
-                    return await this.fetchApiData('/api', { m: 'release', id: params.animeId, sort: params.sort, page: params.page });
+                    return await this.fetchAnimeRelease(params.animeId, params.sort, params.page);
                 }
 
             } else {

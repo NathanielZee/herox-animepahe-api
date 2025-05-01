@@ -3,8 +3,16 @@ const Config = require('./config');
 class DataProcessor {
     static processApiData(apiData, type = 'airing') {
         console.log(`Processing API data of type: ${type}`);
-        
+
+        if(apiData && typeof apiData === 'object' && !apiData.data) {
+            console.log("API data is empty");
+
+            apiData.data = [];
+        }
+
         const items = apiData.data || [];
+
+        console.log("items", items)
         
         if (!Array.isArray(items)) {
             console.error('Unexpected API response format:', JSON.stringify(apiData).substring(0, 200));

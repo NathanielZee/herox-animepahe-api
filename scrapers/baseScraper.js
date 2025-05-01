@@ -8,10 +8,6 @@ class BaseScraper {
         return cheerio.load(html);
     }
     
-    // static async fetchApiData(endpoint, page = 1) {
-    //     return await ApiScraper.fetchApiData(endpoint, page);
-    // }
-    
     static extractId(url) {
         const match = url.match(/\/([^\/]+)(?:\/|$)/);
         return match ? match[1] : null;

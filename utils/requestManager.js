@@ -1,11 +1,21 @@
 const { chromium } = require('playwright');
-const config = require('./config');
+const axios = require('axios');
+const Config = require('./config');
+const fs = require('fs').promises;
 
 class RequestManager {
-    static async fetch(url) {
+    static async fetch(url, type) {
+        if (type === 'json') {
+            this.fetchApiData(url, null, null);
+        } else {
+            this.scrapeHtml(url);
+        }
+    }
+
+    static async scrapeHtml(url) {
         console.log('Fetching content from:', url);
 
-        const proxy = config.getRandomProxy();
+        const proxy = Config.getRandomProxy();
         // console.log(`Using proxy: ${proxy || 'none'}`);
 
         const browser = await chromium.launch({
@@ -40,7 +50,7 @@ class RequestManager {
 
             // Set realistic headers
             await page.setExtraHTTPHeaders({
-                'User-Agent': config.userAgent,
+                'User-Agent': Config.userAgent,
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.9',
                 'Referer': 'https://www.google.com/',
@@ -89,7 +99,7 @@ class RequestManager {
             await browser.close();
         }
     }
-    
+
     static async fetchJson(url) {
         const html = await this.fetch(url);
         
@@ -113,6 +123,32 @@ class RequestManager {
             throw new Error(`Failed to parse JSON from ${url}: ${error.message}`);
         }
     }
+
+    static async fetchApiData(url, params, cookieHeader) {
+            
+            try {
+                const response = await axios({
+                    method: 'get',
+                    url: url,
+                    params: params,
+                    headers: {
+                        'Cookie': cookieHeader,
+                        'User-Agent': Config.userAgent,
+                        'Referer': Config.getUrl('home'),
+                        'Origin': Config.getUrl('home'),
+                        'Accept': 'application/json, text/plain, */*',
+                        'Accept-Language': 'en-US,en;q=0.9'
+                    }
+                });
+    
+                return response.data;
+                
+            } catch (error) {
+                console.error('Error fetching API data:', error.message);
+                
+                throw error;
+            }
+        }
 }
 
 module.exports = RequestManager;

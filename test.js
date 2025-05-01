@@ -1,32 +1,6 @@
 const axios = require('axios');
 const HomeModel = require('./models/homeModel');
 
-async function fetchAnimeData() {
-    const url = 'https://animepahe.ru/api?m=release&id=9a16dfb8-8ffc-a0b0-6508-1b291afa04a7&sort=episode_desc&page=1';
-    const headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        'Referer': 'https://animepahe.ru/',
-        'Origin': 'https://animepahe.ru/',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cookie': '__ddg2_=AoyqRUsdaxJxe5aK; __ddgid_=ql3tWKTMRULVcCeC;'
-    };
-
-    try {
-        const response = await axios.get(url, { headers });
-        console.log('Anime Data:', response.data);
-    } catch (error) {
-        console.error('❌ Failed to fetch anime data:', error.message);
-        // Log the full error for debugging
-        console.error('Full error:', error);
-    }
-}
-
-// Run the function
-fetchAnimeData();
-
-
-
 
 async function testHomeModel() {
     try {
@@ -68,11 +42,11 @@ async function fetchProxies() {
                 .filter(proxy => proxy !== '');
             newProxies.forEach((proxy) => {if(validateProxy(proxy)){proxies.add(proxy)}});
         } catch (error) {
-            console.error(`Failed to fetch proxies from ${source}:`, error.message);
+            // console.error(`Failed to fetch proxies from ${source}:`, error.message);
         }
     }
 
-    console.log('Fetched proxies:', Array.from(proxies));
+    // console.log('Fetched proxies:', Array.from(proxies));
     return Array.from(proxies);
 }
 
@@ -90,7 +64,7 @@ async function validateProxy(proxy) {
         console.log(`Proxy ${proxy} is working. IP:`, response.data.origin);
         return true;
     } catch (error) {
-        console.error(`Proxy ${proxy} failed:`, error.message);
+        // console.error(`Proxy ${proxy} failed:`, error.message);
         return false;
     }
 }
@@ -98,3 +72,26 @@ async function validateProxy(proxy) {
 // Example usage
 validateProxy('http://50.171.122.28:80');
 
+async function fetchAnimeData() {
+    const url = 'https://animepahe.ru/anime/9a16dfb8-8ffc-a0b0-6508-1b291afa04a7';
+    const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Referer': 'https://animepahe.ru/',
+        'Origin': 'https://animepahe.ru/',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cookie': '__ddg2_=AoyqRUsdaxJxe5aK; __ddgid_=ql3tWKTMRULVcCeC;'
+    };
+
+    try {
+        const response = await axios.get(url, { headers });
+        console.log('Anime Data:', response.data);
+    } catch (error) {
+        console.error('❌ Failed to fetch anime data:', error.message);
+        // Log the full error for debugging
+        console.error('Full error:', error);
+    }
+}
+
+// Run the function
+fetchAnimeData();
