@@ -5,6 +5,7 @@ class Config {
         this.hostUrl = '';
         this.baseUrl = 'https://animepahe.ru'; 
         this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+        this.cookies = '';
         this.proxies = [];
     }
 
@@ -12,6 +13,15 @@ class Config {
         if (!this.hostUrl && protocol && host) {
           this.hostUrl = `${protocol}://${host}`;
           console.log(`Host URL set to: ${this.hostUrl}`);
+        }
+    }
+
+    setCookies(cookieHeader) {
+        if(!cookieHeader) {
+            console.log("Cookie Header missing");
+        } else {
+            console.log("Cookies Set!");
+            this.cookies = cookieHeader;
         }
     }
 

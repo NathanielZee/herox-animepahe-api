@@ -10,6 +10,7 @@ class RequestManager {
         } else if (type === 'heavy') {
             return this.scrapeWithPlaywright(url);
         } else if (type === 'default') {
+            // const cookieHeader = Config.cookies;
             return this.scrapeWithCheerio(url, cookieHeader);
         }  else {
             console.trace('Invalid fetch type specified. Please use "json", "heavy", or "default".');
@@ -18,6 +19,9 @@ class RequestManager {
     }
 
     static async scrapeWithCheerio(url, cookieHeader) {
+        if(!cookieHeader) {
+            console.log("cookies is empty");
+        }
         console.log("CookieHeader". cookieHeader);
         const html = await this.fetchApiData(url, {}, cookieHeader);
         
@@ -29,7 +33,7 @@ class RequestManager {
         // const pageHtml = $.html();
 
         // Return the HTML content
-        return html;
+        return cheerio.load(html);
     }
 
     static async scrapeWithPlaywright(url) {

@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
 const RequestManager = require("../utils/requestManager");
+const BaseScraper = require('../scrapers/baseScraper');
 
 class ApiClient {
     constructor() {
@@ -82,17 +83,26 @@ class ApiClient {
         }
     }
 
-    async fetchApiData(endpoint, params = {}) {
+    async getCookies() {
         await this.initialize();
+
+        const cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
+            
+        const cookieHeader = cookieData.cookies
+            .map(cookie => `${cookie.name}=${cookie.value}`)
+            .join('; ');
+
+        Config.setCookies(cookieHeader);
+
+        return Config.cookieHeader();
+    }
+
+    async fetchApiData(endpoint, params = {}) {
         console.log(endpoint, params);
         
         try {
             // Load cookies
-            const cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
-            
-            const cookieHeader = cookieData.cookies
-                .map(cookie => `${cookie.name}=${cookie.value}`)
-                .join('; ');
+            const cookieHeader = getCookies();
             
             // Build URL with query parameters
             const url = new URL(endpoint, Config.getUrl('home')).toString();
@@ -256,9 +266,9 @@ class ApiClient {
 
         console.log("CookieHeader", cookieHeader);
 
-        const html = await RequestManager.fetch(url, 'json', cookieHeader);
+        const html = await RequestManager.fetch(url, 'default', cookieHeader);
 
-        console.log(html);
+        return html;
     }
     
     async getData(type, params, preferFetch = true) {

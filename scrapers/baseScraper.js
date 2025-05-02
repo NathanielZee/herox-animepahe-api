@@ -1,11 +1,10 @@
 const cheerio = require('cheerio');
 const RequestManager = require('../utils/requestManager');
-const ApiClient = require('./apiClient');
-
 class BaseScraper {
     static async fetchPage(url, type) {
         const html = await RequestManager.fetch(url, type);
         if (!html) {
+            console.log("No html was returned");
             return '';
         }
         

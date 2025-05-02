@@ -8,15 +8,13 @@ class AnimeInfoModel extends BaseScraper {
         try {
             console.log('Attempting to fetch API data for anime with Id', animeId);
             const apiData = await ApiClient.getData("animeInfo", { animeId }, false);
-
-            console.log("API DATA", apiData);
             
             if (apiData && (apiData.data)) {
                 console.log('Successfully retrieved API data');
                 return DataProcessor.processApiData(apiData);
             } else {
-                console.log('API data not in expected format, falling back to HTML scraping', apiData);
-                // return this.scrapeInfoPage(animeId, 'json');
+                console.log('API data not in expected format, falling back to HTML scraping');
+                return this.scrapeInfoPage(apiData);
             }
         } catch (error) {
             console.error('API scraping failed:', error.message);
@@ -53,19 +51,21 @@ class AnimeInfoModel extends BaseScraper {
             // return this.scrapeInfoPage();
         }
     }
-    static async scrapeInfoPage(animeId, type) {
-        console.log('Sounds like a drag to implement this now. But I guess I have no choice... \n Will try scraping for', animeId);
-        const url = Config.getUrl('animeInfo', animeId);
+    static async scrapeInfoPage(html) {
+        console.log('Sounds like a drag to implement this now. But I guess I have no choice... \n Will try parsing', html);
+        // const url = Config.getUrl('animeInfo', animeId);
 
-        console.log("Attempting to fetch url", url);
+        // console.log("Attempting to fetch url", url);
 
-        const $ = await this.fetchPage(url, type);
+        // const $ = await this.fetchPage(url, type);
+
+        const $ = html;
 
         console.log("Successfully fetched page", $);
 
         const animeInfo = {
-            title: $('.title-wrapper h1').text().trim(),
-            image: $('.anime-poster img').attr('src'),
+            title: $('.title-wrapper h1 span').first().text().trim(),
+            image: $('.poster-wrapper .anime-poster img').attr('data-src'),
             synopsis: $('.content-wrapper .anime-synopsis').text().trim(),
             // genres: [],
             // episodes: [],
