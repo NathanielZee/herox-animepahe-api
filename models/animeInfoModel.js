@@ -6,8 +6,8 @@ const Config = require('../utils/config');
 class AnimeInfoModel extends BaseScraper {
     static async getAnimeInfo(animeId) {
         try {
-            console.log('Attempting to scrape API data on page', page);
-            const apiData = await ApiClient.getData("animeInfo", { page });
+            console.log('Attempting to fetch API data for anime with Id', animeId);
+            const apiData = await ApiClient.getData("animeInfo", { animeId }, false);
 
             console.log("API DATA", apiData);
             
@@ -16,12 +16,12 @@ class AnimeInfoModel extends BaseScraper {
                 return DataProcessor.processApiData(apiData);
             } else {
                 console.log('API data not in expected format, falling back to HTML scraping', apiData);
-                return this.scrapeInfoPage(animeId, 'json');
+                // return this.scrapeInfoPage(animeId, 'json');
             }
         } catch (error) {
             console.error('API scraping failed:', error.message);
             console.log('Falling back to HTML scraping');
-            return this.scrapeInfoPage(animeId);
+            // return this.scrapeInfoPage(animeId, 'default');
         }
     }
     static async getAnimeReleases(animeId, sort, page) {

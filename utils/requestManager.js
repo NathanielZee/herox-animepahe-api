@@ -2,25 +2,37 @@ const { chromium } = require('playwright');
 const cheerio = require('cheerio');
 const axios = require('axios');
 const Config = require('./config');
-const fs = require('fs').promises;
 
 class RequestManager {
-    static async fetch(url, type) {
+    static async fetch(url, type, cookieHeader) {
         if (type === 'json') {
-            this.fetchApiData(url, null, null);
-        } else if (type === 'easyscrape') {
-            this.scrapeWithCheerio(url);
-        }
-        else {
-            this.scrapeHtml(url);
+            return this.fetchApiData(url, null, null);
+        } else if (type === 'heavy') {
+            return this.scrapeWithPlaywright(url);
+        } else if (type === 'default') {
+            return this.scrapeWithCheerio(url, cookieHeader);
+        }  else {
+            console.trace('Invalid fetch type specified. Please use "json", "heavy", or "default".');
+            return null;
         }
     }
 
-    static async scrapeWithCheerio(url) {
+    static async scrapeWithCheerio(url, cookieHeader) {
+        console.log("CookieHeader". cookieHeader);
+        const html = await this.fetchApiData(url, {}, cookieHeader);
         
+        console.log(html);
+
+        // Load the HTML into Cheerio
+        // const $ = cheerio.load(html);
+
+        // const pageHtml = $.html();
+
+        // Return the HTML content
+        return html;
     }
 
-    static async scrapeHtml(url) {
+    static async scrapeWithPlaywright(url) {
         console.log('Fetching content from:', url);
 
         const proxy = Config.getRandomProxy();

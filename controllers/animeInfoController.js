@@ -7,6 +7,7 @@ class AnimeInfoController {
             const animeInfo = await AnimeInfoModel.getAnimeInfo(animeId);
             res.json(animeInfo);
         } catch (error) {
+            console.error(error);
             res.status(500).json({ error: 'Failed to scrape anime info' });
         }
     }

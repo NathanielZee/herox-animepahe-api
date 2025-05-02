@@ -242,6 +242,24 @@ class ApiClient {
         
         return searchResults;
     }
+
+    async scrapeAnimeInfo(animeId) {
+        const url = `${Config.getUrl('animeInfo')}${animeId}`;
+
+        console.log('Scraping anime info...', url);
+
+        const cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
+            
+        const cookieHeader = cookieData.cookies
+            .map(cookie => `${cookie.name}=${cookie.value}`)
+            .join('; ');
+
+        console.log("CookieHeader", cookieHeader);
+
+        const html = await RequestManager.fetch(url, 'json', cookieHeader);
+
+        console.log(html);
+    }
     
     async getData(type, params, preferFetch = true) {
         console.log(type);
@@ -263,11 +281,13 @@ class ApiClient {
                     return await this.scrapeAiringData(params.page || 1);
                 } else if (type === 'search') {
                     return await this.scrapeSearchData(params.query);
+                } else if (type === 'animeInfo') {
+                    return await this.scrapeAnimeInfo(params.animeId);
                 }
             }
         } catch (error) {
             console.error(`Error using preferred method (${preferFetch ? 'fetch' : 'scrape'}). Trying fallback...`);
-            
+            console.log(error);
             // Fallback to the other method
             if (preferFetch) {
                 if (type === 'airing') {
