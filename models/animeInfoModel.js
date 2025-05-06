@@ -64,51 +64,66 @@ class AnimeInfoModel extends BaseScraper {
         console.log("Successfully fetched page", $);
 
         const animeInfo = {
+            ids: {
+                // Main internal ID
+                animepahe_id: $('meta[name="id"]').attr('content') || null,
+            
+                // External service IDs
+                anidb: $('meta[name="anidb"]').attr('content') || null,
+                anilist: $('meta[name="anilist"]').attr('content') || null,
+                animePlanet: $('meta[name="anime-planet"]').attr('content') || null,
+                ann: $('meta[name="ann"]').attr('content') || null,
+                kitsu: $('meta[name="kitsu"]').attr('content') || null,
+                mal: $('meta[name="myanimelist"]').attr('content') || null
+            },
             title: $('.title-wrapper h1 span').first().text().trim(),
+
             image: $('.poster-wrapper .anime-poster img').attr('data-src'),
+
             synopsis: $('.content-wrapper .anime-synopsis').text().trim(),
+
             synonym: $('.anime-info p:contains("Synonyms:")').text().split('Synonyms:')[1].trim(),
 
-            // Japanese (text after <strong>)
             japanese: $('.anime-info p:contains("Japanese:")').text().split('Japanese:')[1].trim(),
           
-            // Type (text inside <a> within <strong>)
             type: $('.anime-info p:contains("Type:") a').text().trim(),
           
-            // Episodes (text after <strong>)
-            episodes: ($('.anime-info p:contains("Episodes:")').text().split(/(Episodes:|Episodes)/)[1] || '').replace(/\D/g, '').trim(),
+            episodes: $('.anime-info p:contains("Episodes:")').text().replace('Episodes:', "").trim(),
 
-            // Status (text inside <a> within <strong>)
             status: $('.anime-info p:contains("Status:") a').text().trim(),
           
-            // Duration (text after <strong>)
             duration: $('.anime-info p:contains("Duration:")').text().split('Duration:')[1].trim(),
           
-            // Aired (text after <strong>)
             aired: ($('.anime-info p:contains("Aired:")').text().split('Aired:')[1] || '')
-            .replace(/\n/g, ' ')
+            .replace(/\s+/g, ' ')
             .replace(/to\s+\?/, '')
-            .trim(),
-          
-            // Season (text inside <a> within <strong>)
+            .trim()
+            .replace(/(\w{3} \d{2}, \d{4}) +to +(\w{3} \d{2}, \d{4})/, '$1 to $2'),
+
             season: $('.anime-info p:contains("Season:") a').text().trim(),
           
-            // Studio (text after <strong>)
             studio: $('.anime-info p:contains("Studio:")').text().split('Studio:')[1].trim(),
           
-            // Themes (text of all <a> elements)
-            themes: $('.anime-info p')
-            .filter((i, el) => $(el).find('strong').text().trim().replace(/\s+/g, ' ').toLowerCase() === 'themes:')
+            themes: $('.anime-info p:contains("Themes:")')
             .find('a')
             .map((i, el) => $(el).text().trim())
-            .get()
-            .join(', ') || 'N/A',
+            .get() || [],
+
+            demographic: $('.anime-info p:contains("Demographic:")')
+            .find('a')
+            .map((i, el) => $(el).text().trim())
+            .get() || [],
           
-            // External Links (array of objects)
             external_links: $('.anime-info p.external-links a').map((i, el) => ({
               name: $(el).text(),
-              url: $(el).attr('href')
-            })).get()
+              url: $(el).attr('href').replace(/^(http:)?\/\//, 'https://').replace(/^https:\/\/https:\/\//, 'https://')
+            })).get(),
+
+            genre: $('.anime-info div.anime-genre ul li a').map((i, el) => ({
+                name: $(el).text(),
+                url: Config.baseUrl 
+                + $(el).attr('href')
+              })).get() || []
         };
 
         console.log(animeInfo);
