@@ -10,7 +10,6 @@ class RequestManager {
         } else if (type === 'heavy') {
             return this.scrapeWithPlaywright(url);
         } else if (type === 'default') {
-            // const cookieHeader = Config.cookies;
             return this.scrapeWithCheerio(url, cookieHeader);
         }  else {
             console.trace('Invalid fetch type specified. Please use "json", "heavy", or "default".');
@@ -33,7 +32,8 @@ class RequestManager {
         // const pageHtml = $.html();
 
         // Return the HTML content
-        return cheerio.load(html);
+        // return cheerio.load(html);
+        return html;
     }
 
     static async scrapeWithPlaywright(url) {

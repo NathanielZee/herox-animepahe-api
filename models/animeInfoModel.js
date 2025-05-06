@@ -1,7 +1,9 @@
+const cheerio = require('cheerio');
 const BaseScraper = require('../scrapers/baseScraper');
 const DataProcessor = require('../utils/dataProcessor');
 const ApiClient = require('../scrapers/apiClient');
 const Config = require('../utils/config');
+const { getJsVariable } = require('../utils/jsParser')
 
 class AnimeInfoModel extends BaseScraper {
     static async getAnimeInfo(animeId) {
@@ -13,7 +15,7 @@ class AnimeInfoModel extends BaseScraper {
                 console.log('Successfully retrieved API data');
                 return DataProcessor.processApiData(apiData);
             } else {
-                console.log('API data not in expected format, falling back to HTML scraping');
+                console.log('API data not in expected format, falling back to HTML scraping', apiData);
                 return this.scrapeInfoPage(apiData);
             }
         } catch (error) {
@@ -51,13 +53,18 @@ class AnimeInfoModel extends BaseScraper {
             // return this.scrapeInfoPage();
         }
     }
-    static async scrapeInfoPage(html) {
-        console.log('Sounds like a drag to implement this now. But I guess I have no choice... \n Will try parsing', html);
+    static async scrapeInfoPage(pageHtml) {
+        console.log('Sounds like a drag to implement this now. But I guess I have no choice... \n Will try parsing', pageHtml);
         // const url = Config.getUrl('animeInfo', animeId);
 
         // console.log("Attempting to fetch url", url);
 
         // const $ = await this.fetchPage(url, type);
+        const html = cheerio.load(pageHtml);
+
+        const previewUrl = getJsVariable(pageHtml, 'preview');
+
+        console.log(previewUrl);
 
         const $ = html;
 
@@ -76,33 +83,35 @@ class AnimeInfoModel extends BaseScraper {
                 kitsu: $('meta[name="kitsu"]').attr('content') || null,
                 mal: $('meta[name="myanimelist"]').attr('content') || null
             },
-            title: $('.title-wrapper h1 span').first().text().trim(),
+            title: $('.title-wrapper h1 span').first().text().trim() || null,
 
-            image: $('.poster-wrapper .anime-poster img').attr('data-src'),
+            image: $('.poster-wrapper .anime-poster img').attr('data-src') || null,
 
-            synopsis: $('.content-wrapper .anime-synopsis').text().trim(),
+            youtube: previewUrl || null,
 
-            synonym: $('.anime-info p:contains("Synonyms:")').text().split('Synonyms:')[1].trim(),
+            synopsis: $('.content-wrapper .anime-synopsis').text().trim() || null,
 
-            japanese: $('.anime-info p:contains("Japanese:")').text().split('Japanese:')[1].trim(),
+            synonym: $('.anime-info p:contains("Synonyms:")').text().split('Synonyms:')[1].trim() || null,
+
+            japanese: $('.anime-info p:contains("Japanese:")').text().split('Japanese:')[1].trim() || null,
           
-            type: $('.anime-info p:contains("Type:") a').text().trim(),
+            type: $('.anime-info p:contains("Type:") a').text().trim() || null,
           
-            episodes: $('.anime-info p:contains("Episodes:")').text().replace('Episodes:', "").trim(),
+            episodes: $('.anime-info p:contains("Episodes:")').text().replace('Episodes:', "").trim() || null,
 
-            status: $('.anime-info p:contains("Status:") a').text().trim(),
+            status: $('.anime-info p:contains("Status:") a').text().trim() || null,
           
-            duration: $('.anime-info p:contains("Duration:")').text().split('Duration:')[1].trim(),
+            duration: $('.anime-info p:contains("Duration:")').text().split('Duration:')[1].trim() || null,
           
             aired: ($('.anime-info p:contains("Aired:")').text().split('Aired:')[1] || '')
             .replace(/\s+/g, ' ')
             .replace(/to\s+\?/, '')
             .trim()
-            .replace(/(\w{3} \d{2}, \d{4}) +to +(\w{3} \d{2}, \d{4})/, '$1 to $2'),
+            .replace(/(\w{3} \d{2}, \d{4}) +to +(\w{3} \d{2}, \d{4})/, '$1 to $2') || null,
 
-            season: $('.anime-info p:contains("Season:") a').text().trim(),
+            season: $('.anime-info p:contains("Season:") a').text().trim() || null,
           
-            studio: $('.anime-info p:contains("Studio:")').text().split('Studio:')[1].trim(),
+            studio: $('.anime-info p:contains("Studio:")').text().split('Studio:')[1].trim() || null,
           
             themes: $('.anime-info p:contains("Themes:")')
             .find('a')
@@ -117,7 +126,7 @@ class AnimeInfoModel extends BaseScraper {
             external_links: $('.anime-info p.external-links a').map((i, el) => ({
               name: $(el).text(),
               url: $(el).attr('href').replace(/^(http:)?\/\//, 'https://').replace(/^https:\/\/https:\/\//, 'https://')
-            })).get(),
+            })).get() || [],
 
             genre: $('.anime-info div.anime-genre ul li a').map((i, el) => ({
                 name: $(el).text(),
