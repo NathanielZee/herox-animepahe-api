@@ -76,8 +76,8 @@ class AnimeInfoModel extends BaseScraper {
             type: $('.anime-info p:contains("Type:") a').text().trim(),
           
             // Episodes (text after <strong>)
-            episodes: $('.anime-info p:contains("Episodes:")').text().split('Episodes:')[1].trim(),
-          
+            episodes: ($('.anime-info p:contains("Episodes:")').text().split(/(Episodes:|Episodes)/)[1] || '').replace(/\D/g, '').trim(),
+
             // Status (text inside <a> within <strong>)
             status: $('.anime-info p:contains("Status:") a').text().trim(),
           
@@ -85,7 +85,10 @@ class AnimeInfoModel extends BaseScraper {
             duration: $('.anime-info p:contains("Duration:")').text().split('Duration:')[1].trim(),
           
             // Aired (text after <strong>)
-            aired: $('.anime-info p:contains("Aired:")').text().split('Aired:')[1].trim(),
+            aired: ($('.anime-info p:contains("Aired:")').text().split('Aired:')[1] || '')
+            .replace(/\n/g, ' ')
+            .replace(/to\s+\?/, '')
+            .trim(),
           
             // Season (text inside <a> within <strong>)
             season: $('.anime-info p:contains("Season:") a').text().trim(),
@@ -94,7 +97,12 @@ class AnimeInfoModel extends BaseScraper {
             studio: $('.anime-info p:contains("Studio:")').text().split('Studio:')[1].trim(),
           
             // Themes (text of all <a> elements)
-            themes: $('.anime-info p:contains("Themes:") a').map((i, el) => $(el).text()).get().join(', '),
+            themes: $('.anime-info p')
+            .filter((i, el) => $(el).find('strong').text().trim().replace(/\s+/g, ' ').toLowerCase() === 'themes:')
+            .find('a')
+            .map((i, el) => $(el).text().trim())
+            .get()
+            .join(', ') || 'N/A',
           
             // External Links (array of objects)
             external_links: $('.anime-info p.external-links a').map((i, el) => ({
