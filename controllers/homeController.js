@@ -5,6 +5,9 @@ class HomeController {
         try {
             const page = req.query.page || 1;
             const airingAnime = await HomeModel.getAiringAnime(page);
+            if(!airingAnime) {
+                throw new Error("No result returned from AiringAnime");
+            }
             res.json(airingAnime);
         } catch (error) {
             console.log(error);
@@ -18,6 +21,9 @@ class HomeController {
             // PAGE HAS NO EFFECT ATM, JUST THERE INCASE
             const page = req.query.page || 1;
             const airingAnime = await HomeModel.searchAnime(query, page);
+            if(!airingAnime) {
+                throw new Error("No result returned from SearchAnime");
+            }
             res.json(airingAnime);
         } catch (error) {
             console.log(error);

@@ -5,13 +5,11 @@ const Config = require('./config');
 
 class RequestManager {
     static async fetch(url, type, cookieHeader) {
-        if (type === 'json') {
-            return this.fetchApiData(url, null, null);
+        if (type === 'default') {
+            return this.fetchApiData(url, {}, cookieHeader);
         } else if (type === 'heavy') {
             return this.scrapeWithPlaywright(url);
-        } else if (type === 'default') {
-            return this.scrapeWithCheerio(url, cookieHeader);
-        }  else {
+        } else {
             console.trace('Invalid fetch type specified. Please use "json", "heavy", or "default".');
             return null;
         }
@@ -149,7 +147,9 @@ class RequestManager {
     }
 
     static async fetchApiData(url, params, cookieHeader) {
-            
+            if(!cookieHeader) {
+                console.log("cookies is empty");
+            }
             try {
                 const response = await axios({
                     method: 'get',

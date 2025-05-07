@@ -94,7 +94,7 @@ class ApiClient {
 
         Config.setCookies(cookieHeader);
 
-        return Config.cookieHeader();
+        return Config.cookies;
     }
 
     async fetchApiData(endpoint, params = {}) {
@@ -102,7 +102,7 @@ class ApiClient {
         
         try {
             // Load cookies
-            const cookieHeader = getCookies();
+            const cookieHeader = this.getCookies();
             
             // Build URL with query parameters
             const url = new URL(endpoint, Config.getUrl('home')).toString();
@@ -314,7 +314,7 @@ class ApiClient {
             }
         }
         
-        throw new Error(`Unsupported data type: ${type}`);
+        throw new Error(`Unsupported data type: ${type} (${typeof type})`);
     }
 }
 

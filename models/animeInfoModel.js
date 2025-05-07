@@ -55,11 +55,7 @@ class AnimeInfoModel extends BaseScraper {
     }
     static async scrapeInfoPage(pageHtml) {
         console.log('Sounds like a drag to implement this now. But I guess I have no choice... \n Will try parsing', pageHtml);
-        // const url = Config.getUrl('animeInfo', animeId);
 
-        // console.log("Attempting to fetch url", url);
-
-        // const $ = await this.fetchPage(url, type);
         const html = cheerio.load(pageHtml);
 
         const previewUrl = getJsVariable(pageHtml, 'preview');
@@ -87,7 +83,7 @@ class AnimeInfoModel extends BaseScraper {
 
             image: $('.poster-wrapper .anime-poster img').attr('data-src') || null,
 
-            youtube: previewUrl || null,
+            preview: previewUrl || null,
 
             synopsis: $('.content-wrapper .anime-synopsis').text().trim() || null,
 
@@ -128,16 +124,16 @@ class AnimeInfoModel extends BaseScraper {
               url: $(el).attr('href').replace(/^(http:)?\/\//, 'https://').replace(/^https:\/\/https:\/\//, 'https://')
             })).get() || [],
 
-            genre: $('.anime-info div.anime-genre ul li a').map((i, el) => ({
-                name: $(el).text(),
-                url: Config.baseUrl 
-                + $(el).attr('href')
-              })).get() || []
+            genre: $('.anime-info div.anime-genre ul li a').map((i, el) => $(el).text()).get() || []
         };
 
         console.log(animeInfo);
 
         return animeInfo;
+    }
+
+    static async scrapeRelationsSection() {
+        
     }
 }
 
