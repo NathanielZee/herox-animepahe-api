@@ -124,7 +124,8 @@ class AnimeInfoModel extends BaseScraper {
               url: $(el).attr('href').replace(/^(http:)?\/\//, 'https://').replace(/^https:\/\/https:\/\//, 'https://')
             })).get() || [],
 
-            genre: $('.anime-info div.anime-genre ul li a').map((i, el) => $(el).text()).get() || []
+            genre: $('.anime-info div.anime-genre ul li a').map((i, el) => $(el).text()).get() || [],
+            relations: await this.scrapeRelationsSection(html),
         };
 
         console.log(animeInfo);
@@ -132,8 +133,51 @@ class AnimeInfoModel extends BaseScraper {
         return animeInfo;
     }
 
-    static async scrapeRelationsSection() {
-        
+    static async scrapeRelationsSection(html) {
+        const $ = html;
+        const relations = {};
+
+        $('div.col-12.col-sm-6, div.col-12.col-sm-12').each((i, section) => {
+          const $section = $(section);
+          const type = $section.find('h4 span').text().trim();
+
+          if (!type || $section.find('div.col-12.col-sm-12.mb-3, div.col-12.col-sm-6.mb-3').length === 0) return;
+          
+          relations[type] = [];
+          
+          $section.find('div.col-12.col-sm-12.mb-3, div.col-12.col-sm-6.mb-3').each((j, entry) => {
+            const $entry = $(entry);
+            const titleLink = $entry.find('h5 a');
+            
+            relations[type].push({
+                title: titleLink.text().trim(),
+                url: titleLink.attr('href'),
+                image: $entry.find('img').attr('src'),
+                type: ($entry.find('strong a').first().text().trim() || '?').replace(/\s+/g, ' '),
+                episodes: ($entry.text().match(/(\d+)\s+Episode/) || [, '0'])[1],
+                status: (() => {
+                    const text = $entry.text().replace(/\s+/g, ' ');
+                    const episodeIndex = text.toLowerCase().lastIndexOf('episode');
+                  
+                    if (episodeIndex === -1) return 'Unknown';
+                  
+                    const afterEpisode = text.slice(episodeIndex + 'episode'.length).trim();
+                    const parenStart = afterEpisode.indexOf('(');
+                    const parenEnd = afterEpisode.indexOf(')');
+                  
+                    return (parenStart > -1 && parenEnd > parenStart)
+                      ? afterEpisode.slice(parenStart + 1, parenEnd).trim()
+                      : 'Unknown';
+                  })(),                  
+
+                season: $entry.find('a[href*="season"]').text().trim()
+            });
+          });
+
+          if (relations[type].length === 0) delete relations[type];
+        });
+      
+        return relations;
     }
 }
 
