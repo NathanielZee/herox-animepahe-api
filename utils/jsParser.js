@@ -2,7 +2,6 @@ function getJsVariable(html, variableName) {
   try {
     const sanitizedName = variableName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     
-    // Improved regex with termination control
     const pattern = new RegExp(
       `(?:let|var|const)\\s+${sanitizedName}\\s*=\\s*` +
       `(["'\`])([^"'\\\\\`]*)(?:\\\\.[^"'\\\\\`]*)*\\1\\s*;`, 

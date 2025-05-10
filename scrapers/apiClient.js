@@ -102,7 +102,9 @@ class ApiClient {
         
         try {
             // Load cookies
-            const cookieHeader = this.getCookies();
+            const cookieHeader = await this.getCookies();
+
+            console.log("Cookie Header: ", cookieHeader);
             
             // Build URL with query parameters
             const url = new URL(endpoint, Config.getUrl('home')).toString();

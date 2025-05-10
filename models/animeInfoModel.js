@@ -126,6 +126,7 @@ class AnimeInfoModel extends BaseScraper {
 
             genre: $('.anime-info div.anime-genre ul li a').map((i, el) => $(el).text()).get() || [],
             relations: await this.scrapeRelationsSection(html),
+            recommendations: await this.scrapeRecommendationsSection(html)
         };
 
         console.log(animeInfo);
@@ -137,7 +138,7 @@ class AnimeInfoModel extends BaseScraper {
         const $ = html;
         const relations = {};
 
-        $('div.col-12.col-sm-6, div.col-12.col-sm-12').each((i, section) => {
+        $('.anime-relation > div.col-12.col-sm-6, .anime-relation > div.col-12.col-sm-12').each((i, section) => {
           const $section = $(section);
           const type = $section.find('h4 span').text().trim();
 
@@ -152,9 +153,9 @@ class AnimeInfoModel extends BaseScraper {
             relations[type].push({
                 title: titleLink.text().trim(),
                 url: titleLink.attr('href'),
-                image: $entry.find('img').attr('src'),
+                image: $entry.find('a img').attr('data-src'),
                 type: ($entry.find('strong a').first().text().trim() || '?').replace(/\s+/g, ' '),
-                episodes: ($entry.text().match(/(\d+)\s+Episode/) || [, '0'])[1],
+                episodes: ($entry.text().match(/(\d+)\s+Episode/) || [, '?'])[1],
                 status: (() => {
                     const text = $entry.text().replace(/\s+/g, ' ');
                     const episodeIndex = text.toLowerCase().lastIndexOf('episode');
@@ -179,6 +180,42 @@ class AnimeInfoModel extends BaseScraper {
       
         return relations;
     }
+
+    static async scrapeRecommendationsSection(html) {
+        const $ = html;
+        const recommendations = [];
+
+        $('div.tab-content.anime-recommendation > div.col-12.col-sm-6.mb-3').each((i, entry) => {
+            const $entry = $(entry);
+            const titleLink = $entry.find('h5 a');
+            
+            recommendations.push({
+                title: titleLink.text().trim(),
+                url: titleLink.attr('href'),
+                image: $entry.find('a img').attr('data-src'),
+                type: ($entry.find('strong a').first().text().trim() || '?').replace(/\s+/g, ' '),
+                episodes: ($entry.text().match(/(\d+)\s+Episode/) || [, '?'])[1],
+                status: (() => {
+                    const text = $entry.text().replace(/\s+/g, ' ');
+                    const episodeIndex = text.toLowerCase().lastIndexOf('episode');
+                  
+                    if (episodeIndex === -1) return 'Unknown';
+                  
+                    const afterEpisode = text.slice(episodeIndex + 'episode'.length).trim();
+                    const parenStart = afterEpisode.indexOf('(');
+                    const parenEnd = afterEpisode.indexOf(')');
+                  
+                    return (parenStart > -1 && parenEnd > parenStart)
+                      ? afterEpisode.slice(parenStart + 1, parenEnd).trim()
+                      : 'Unknown';
+                })(),                  
+                season: $entry.find('a[href*="/season/"]').text().trim()
+            });
+        });
+
+        return recommendations;
+    }
+
 }
 
 module.exports = AnimeInfoModel;
