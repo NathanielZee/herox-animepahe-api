@@ -260,11 +260,7 @@ class ApiClient {
 
         console.log('Scraping anime info...', url);
 
-        const cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
-            
-        const cookieHeader = cookieData.cookies
-            .map(cookie => `${cookie.name}=${cookie.value}`)
-            .join('; ');
+        const cookieHeader = await this.getCookies();
 
         console.log("CookieHeader", cookieHeader);
 
@@ -273,6 +269,20 @@ class ApiClient {
         return html;
     }
     
+    async scrapeAnimeList(tag1, tag2) {
+        const url = tag1 || tag2 
+            ? `${Config.getUrl('animeList', tag1, tag2)}`
+            : `${Config.getUrl('animeList')}`;
+
+        console.log(`Fetching anime list at ${url}`);
+
+        const cookieHeader = await this.getCookies();
+        
+        const html = await RequestManager.fetch(url, 'default', cookieHeader);
+
+        return html;
+    }
+
     async getData(type, params, preferFetch = true) {
         console.log(type);
         try {
@@ -295,6 +305,8 @@ class ApiClient {
                     return await this.scrapeSearchData(params.query);
                 } else if (type === 'animeInfo') {
                     return await this.scrapeAnimeInfo(params.animeId);
+                } else if (type === 'animeList') {
+                    return await this.scrapeAnimeList(params.tag1, params.tag2);
                 }
             }
         } catch (error) {

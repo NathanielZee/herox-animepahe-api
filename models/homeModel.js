@@ -6,7 +6,7 @@ const ApiClient = require('../scrapers/apiClient');
 class HomeModel extends BaseScraper {
     static async getAiringAnime(page) {
         try {
-            console.log('Attempting to scrape API data on page', page);
+            console.log('Attempting to retrieve API data on page', page);
             const apiData = await ApiClient.getData("airing", { page });
 
             console.log("API DATA", apiData);
@@ -27,7 +27,7 @@ class HomeModel extends BaseScraper {
 
     static async searchAnime(query, page) {
         try {
-            console.log('Attempting to scrape API data on page', page);
+            console.log('Attempting to retrieve API data on page', page);
             const apiData = await ApiClient.getData("search", { query, page });
 
             console.log("API DATA", apiData);

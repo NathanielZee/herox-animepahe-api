@@ -2,6 +2,7 @@ const express = require('express');
 const Config = require('./utils/config');
 const homeRoutes = require('./routes/homeRoutes');
 const queueRoutes = require('./routes/queueRoutes');
+const animeListRoutes = require('./routes/animeListRoutes');
 const animeInfoRoutes = require('./routes/animeInfoRoutes');
 
 const app = express();
@@ -25,6 +26,7 @@ app.use((req, res, next) => {
 // Use Routes
 app.use('/api', homeRoutes);
 app.use('/api', queueRoutes);
+app.use('/api', animeListRoutes);
 app.use('/api', animeInfoRoutes);
 
 const PORT =  process.env.PORT || 3000;

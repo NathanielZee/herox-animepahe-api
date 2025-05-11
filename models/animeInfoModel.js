@@ -8,14 +8,13 @@ const { getJsVariable } = require('../utils/jsParser')
 class AnimeInfoModel extends BaseScraper {
     static async getAnimeInfo(animeId) {
         try {
-            console.log('Attempting to fetch API data for anime with Id', animeId);
+            console.log('Attempting to retrieve API data for anime with Id', animeId);
             const apiData = await ApiClient.getData("animeInfo", { animeId }, false);
             
-            if (apiData && (apiData.data)) {
-                console.log('Successfully retrieved API data');
+            if (apiData?.data) {
                 return DataProcessor.processApiData(apiData);
             } else {
-                console.log('API data not in expected format, falling back to HTML scraping', apiData);
+                console.log('Data doesn\'t seem like an Api, HTML scraping instead', apiData);
                 return this.scrapeInfoPage(apiData);
             }
         } catch (error) {
@@ -26,7 +25,7 @@ class AnimeInfoModel extends BaseScraper {
     }
     static async getAnimeReleases(animeId, sort, page) {
         try {
-            console.log('Attempting to scrape API data on page', page);
+            console.log('Attempting to retrieve API data on page', page);
             
             const apiData = await ApiClient.getData("releases", { animeId, sort, page });
 
@@ -153,6 +152,7 @@ class AnimeInfoModel extends BaseScraper {
             relations[type].push({
                 title: titleLink.text().trim(),
                 url: titleLink.attr('href'),
+                session: titleLink.attr('href').replace('/anime/', ''),
                 image: $entry.find('a img').attr('data-src'),
                 type: ($entry.find('strong a').first().text().trim() || '?').replace(/\s+/g, ' '),
                 episodes: ($entry.text().match(/(\d+)\s+Episode/) || [, '?'])[1],

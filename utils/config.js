@@ -41,12 +41,13 @@ class Config {
         this.proxies = newProxies;
     }
 
-    getUrl(section, id = '', episodeId = '') {
+    getUrl(section, primary = '', secondary = '') {
         const paths = {
             home: '/',
             queue: '/queue',
-            animeInfo: `/anime/${id}`, 
-            play: `/play/${id}/${episodeId}`
+            animeInfo: `/anime/${primary}`, 
+            animeList: primary && secondary ? `/anime/${primary}/${secondary}` : '/anime', 
+            play: `/play/${primary}/${secondary}`
         };
 
         if (!paths[section]) {
