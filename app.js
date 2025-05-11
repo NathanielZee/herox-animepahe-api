@@ -4,6 +4,7 @@ const homeRoutes = require('./routes/homeRoutes');
 const queueRoutes = require('./routes/queueRoutes');
 const animeListRoutes = require('./routes/animeListRoutes');
 const animeInfoRoutes = require('./routes/animeInfoRoutes');
+const playRoutes = require('./routes/playRoutes');
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use('/api', homeRoutes);
 app.use('/api', queueRoutes);
 app.use('/api', animeListRoutes);
 app.use('/api', animeInfoRoutes);
+app.use('/api', playRoutes);
 
 const PORT =  process.env.PORT || 3000;
 app.listen(PORT, () => {

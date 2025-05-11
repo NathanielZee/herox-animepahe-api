@@ -208,6 +208,48 @@ class ApiClient {
         return this.scrapeApiData('/api?m=airing', pageUrl);
     }
     
+        async scrapeAnimeInfo(animeId) {
+        const url = `${Config.getUrl('animeInfo')}${animeId}`;
+
+        console.log('Scraping anime info...', url);
+
+        const cookieHeader = await this.getCookies();
+
+        console.log("CookieHeader", cookieHeader);
+
+        const html = await RequestManager.fetch(url, 'default', cookieHeader);
+
+        return html;
+    }
+    
+    async scrapeAnimeList(tag1, tag2) {
+        const url = tag1 || tag2 
+            ? `${Config.getUrl('animeList', tag1, tag2)}`
+            : `${Config.getUrl('animeList')}`;
+
+        console.log(`Fetching anime list at ${url}`);
+
+        const cookieHeader = await this.getCookies();
+        
+        const html = await RequestManager.fetch(url, 'default', cookieHeader);
+
+        return html;
+    }
+    
+    async scrapeIframe(episodeId) {
+        const url = Config.getUrl('play', episodeId)};
+
+        console.log('Scraping play page...', url);
+
+        const cookieHeader = await this.getCookies();
+
+        console.log("CookieHeader", cookieHeader);
+
+        const html = await RequestManager.fetch(url, 'default', cookieHeader);
+
+        return html;
+    }
+
     async scrapeSearchData(query) {
         // Create the browser instance with additional options to intercept searches
         const browser = await chromium.launch({ headless: true });
@@ -258,34 +300,6 @@ class ApiClient {
         return searchResults;
     }
 
-    async scrapeAnimeInfo(animeId) {
-        const url = `${Config.getUrl('animeInfo')}${animeId}`;
-
-        console.log('Scraping anime info...', url);
-
-        const cookieHeader = await this.getCookies();
-
-        console.log("CookieHeader", cookieHeader);
-
-        const html = await RequestManager.fetch(url, 'default', cookieHeader);
-
-        return html;
-    }
-    
-    async scrapeAnimeList(tag1, tag2) {
-        const url = tag1 || tag2 
-            ? `${Config.getUrl('animeList', tag1, tag2)}`
-            : `${Config.getUrl('animeList')}`;
-
-        console.log(`Fetching anime list at ${url}`);
-
-        const cookieHeader = await this.getCookies();
-        
-        const html = await RequestManager.fetch(url, 'default', cookieHeader);
-
-        return html;
-    }
-
     async getData(type, params, preferFetch = true) {
         console.log(type);
         try {
@@ -297,8 +311,6 @@ class ApiClient {
                     return await this.fetchSearchData(params.query, params.page);
                 } else if (type === 'queue') {
                     return await this.fetchQueueData();
-                } else if (type === 'animeInfo') {
-                    return await this.fetchApiData('/api', { m: 'anime', id: params.id });
                 } else if (type === 'releases') {
                     return await this.fetchAnimeRelease(params.animeId, params.sort, params.page);
                 }
@@ -308,10 +320,13 @@ class ApiClient {
                     return await this.scrapeAiringData(params.page || 1);
                 } else if (type === 'search') {
                     return await this.scrapeSearchData(params.query);
-                } else if (type === 'animeInfo') {
-                    return await this.scrapeAnimeInfo(params.animeId);
-                } else if (type === 'animeList') {
+                }  else if (type === 'animeList') {
                     return await this.scrapeAnimeList(params.tag1, params.tag2);
+                } 
+                else if (type === 'animeInfo') {
+                    return await this.scrapeAnimeInfo(params.animeId);
+                } else if (type === 'play') {
+                    return await this.scrapeIframe(params.episodeId)
                 }
             }
         } catch (error) {

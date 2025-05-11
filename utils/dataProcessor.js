@@ -49,7 +49,7 @@ class DataProcessor {
                 nextPageUrl: next_page_url.replace(
                     new RegExp(`^(${Config.baseUrl}|/)`),
                     Config.hostUrl
-                ).replace('api?', `api/${type}?`)
+                ).replace('api?', `api/${type}?`) 
             }),
             ...(prev_page_url != null && { prevPageUrl: prev_page_url }),
             ...(from != null && { from }),
