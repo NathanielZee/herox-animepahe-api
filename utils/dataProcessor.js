@@ -19,7 +19,7 @@ class DataProcessor {
             'airing': this._processAiringData,
             'search': this._processSearchData,
             'releases': this._processReleaseData,
-            'details': this._processDetailsData,
+            'queue': this._processQueueData,
         };
         
         const processor = dataProcessors[type] || this._processGenericData;
@@ -112,13 +112,20 @@ class DataProcessor {
         }))
     }
     
-    static _processDetailsData(items) {
-        // Do later
+    static _processQueueData(items) {
         return items.map(item => ({
-            id: item.id || null,
             title: item.title || null,
-            description: item.description || null,
-            // other fields as needed
+            episode: item.episode || null,
+            resolution: item.resolution || null,
+            filesize: item.filesize || null,
+            fansub: item.fansub || null,
+            audio: item.audio || null,
+            progress: item.progress || null,
+            instant: item.instant || null,
+            current_duration: item.current_duration || null,
+            original: item.original_duration || null,
+            session: item.session || null,
+            published: item.published || null,
         }));
     }
     

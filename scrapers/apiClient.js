@@ -111,12 +111,11 @@ class ApiClient {
             
             console.log(`Fetching API data from: ${url}`);
             
-            const data = RequestManager.fetchApiData(url, params, cookieHeader);
+            const data = await RequestManager.fetchApiData(url, params, cookieHeader);
 
             /*
                 LASTLY JUST LIKE HOW ONE CAN CHOOSE IF ONE PREFERS FETCH, ONE SHOULD ALSO BE ABLE TO re-GET THE COOKIES THROUGH PARAMS
             */
-
             
             return data;
             
@@ -193,6 +192,10 @@ class ApiClient {
     async fetchSearchData(query, page) {
         console.log("Trying to search for", query);
         return this.fetchApiData('/api', { m: 'search', q: query, page });
+    }
+
+    async fetchQueueData() {
+        return this.fetchApiData('/api', { m: 'queue' });
     }
 
     async fetchAnimeRelease(id, sort, page) {
@@ -292,6 +295,8 @@ class ApiClient {
                     return await this.fetchAiringData(params.page || 1);
                 } else if (type === 'search') {
                     return await this.fetchSearchData(params.query, params.page);
+                } else if (type === 'queue') {
+                    return await this.fetchQueueData();
                 } else if (type === 'animeInfo') {
                     return await this.fetchApiData('/api', { m: 'anime', id: params.id });
                 } else if (type === 'releases') {
