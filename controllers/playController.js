@@ -1,8 +1,9 @@
-const PlayModel = require('../models/queueModel');
+const PlayModel = require('../models/playModel');
 
 class PlayController {
     static async getStreamingLinks(req, res) {
         try {
+            const { episodeId } = req.params;
             const links = await PlayModel.getStreamingLinks();
             res.json(links);
         } catch (error) {

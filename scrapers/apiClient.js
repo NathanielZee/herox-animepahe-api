@@ -237,7 +237,7 @@ class ApiClient {
     }
     
     async scrapeIframe(episodeId) {
-        const url = Config.getUrl('play', episodeId)};
+        const url = Config.getUrl('play', episodeId);
 
         console.log('Scraping play page...', url);
 
