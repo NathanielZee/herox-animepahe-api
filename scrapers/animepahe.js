@@ -4,7 +4,6 @@ const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
 const RequestManager = require("../utils/requestManager");
-const BaseScraper = require('./baseScraper');
 const { CustomError } = require('../middleware/errorHandler');
 
 class Animepahe {

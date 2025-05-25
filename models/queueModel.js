@@ -1,10 +1,9 @@
-const BaseScraper = require('../scrapers/baseScraper');
 const DataProcessor = require('../utils/dataProcessor');
 const Config = require('../utils/config');
 const Animepahe = require('../scrapers/animepahe');
 const { CustomError } = require('../middleware/errorHandler');
 
-class QueueModel extends BaseScraper {
+class QueueModel {
     static async getQueue() {
         const apiData = await Animepahe.getData("queue");
 

@@ -1,5 +1,3 @@
-const ProxyManager = require('./proxyManager');
-
 class Config {
     constructor() {
         this.hostUrl = '';
@@ -23,10 +21,6 @@ class Config {
             console.log("Cookies Set!");
             this.cookies = cookieHeader;
         }
-    }
-
-    async initialize() {
-        this.proxies = await ProxyManager.fetchProxies();
     }
 
     getRandomProxy() {
@@ -57,7 +51,6 @@ class Config {
         return `${this.baseUrl}${paths[section]}`;
     }
 
-    // Method to load configuration from environment variables
     loadFromEnv() {
         if (process.env.BASE_URL) {
             this.baseUrl = process.env.BASE_URL;
@@ -65,9 +58,20 @@ class Config {
         if (process.env.USER_AGENT) {
             this.userAgent = process.env.USER_AGENT;
         }
+        if (process.env.HOST_URL) {
+            this.hostUrl = process.env.HOST_URL;
+        }
+        if (process.env.COOKIES) {
+            this.cookies = process.env.COOKIES;
+        }
+        if (process.env.PROXIES) {
+            this.proxies = process.env.PROXIES.split(',');
+        }
+        if (process.env.USE_PROXY === 'true') {
+            this.proxyEnabled = true;
+        }
     }
 
-    // Method to validate configuration
     validate() {
         if (!this.baseUrl) {
             throw new Error('Base URL is required in configuration.');
@@ -79,6 +83,4 @@ class Config {
 }
 
 const config = new Config();
-config.initialize().catch(err => console.error('Failed to initialize config:', err));
-
 module.exports = config;

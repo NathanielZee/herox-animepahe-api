@@ -15,25 +15,6 @@ class RequestManager {
         }
     }
 
-    static async scrapeWithCheerio(url, cookieHeader) {
-        if(!cookieHeader) {
-            console.log("cookies is empty");
-        }
-        console.log("CookieHeader". cookieHeader);
-        const html = await this.fetchApiData(url, {}, cookieHeader);
-        
-        console.log(html);
-
-        // Load the HTML into Cheerio
-        // const $ = cheerio.load(html);
-
-        // const pageHtml = $.html();
-
-        // Return the HTML content
-        // return cheerio.load(html);
-        return html;
-    }
-
     static async scrapeWithPlaywright(url) {
         console.log('Fetching content from:', url);
 
@@ -159,7 +140,7 @@ class RequestManager {
                         'Accept-Language': 'en-US,en;q=0.9'
                     },
                     validateStatus: function (status) {
-                        // Consider all status codes as successful so we can handle them ourselves
+                        // Accept all status codes
                         return true;
                     }
                 });
@@ -180,7 +161,6 @@ class RequestManager {
                 return response.data;
                 
             } catch (error) {
-                // Ensure error has a response status if it doesn't
                 if (!error.response) {
                     error.response = { status: 503 };
                 }

@@ -1,10 +1,9 @@
-const BaseScraper = require('../scrapers/baseScraper');
 const DataProcessor = require('../utils/dataProcessor');
 const Config = require('../utils/config');
 const Animepahe = require('../scrapers/animepahe');
 const { CustomError } = require('../middleware/errorHandler');
 
-class HomeModel extends BaseScraper {
+class HomeModel {
     static async getAiringAnime(page) {
         const apiData = await Animepahe.getData("airing", { page });
 

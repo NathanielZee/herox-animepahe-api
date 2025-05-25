@@ -1,12 +1,11 @@
 const cheerio = require('cheerio');
-const BaseScraper = require('../scrapers/baseScraper');
 const DataProcessor = require('../utils/dataProcessor');
 const Config = require('../utils/config');
 const Animepahe = require('../scrapers/animepahe');
 const { getJsVariable } = require('../utils/jsParser');
 const { CustomError } = require('../middleware/errorHandler');
 
-class PlayModel extends BaseScraper {
+class PlayModel {
     static async getStreamingLinks(id, episodeId) {
         const apiData = await Animepahe.getData("play", { id, episodeId }, false);
         

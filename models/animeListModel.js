@@ -1,11 +1,10 @@
 const cheerio = require('cheerio');
-const BaseScraper = require('../scrapers/baseScraper');
 const DataProcessor = require('../utils/dataProcessor');
 const Animepahe = require('../scrapers/animepahe');
 const Config = require('../utils/config');
 const { CustomError } = require('../middleware/errorHandler');
 
-class AnimeListModel extends BaseScraper {
+class AnimeListModel {
     static async getAnimeList(tab, tag1, tag2) {
         const apiData = await Animepahe.getData("animeList", { tag1, tag2 }, false);
         
