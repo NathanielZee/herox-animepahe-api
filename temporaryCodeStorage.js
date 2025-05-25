@@ -158,4 +158,25 @@ class ApiScraper {
     }
 }
 
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+(async () => {
+  try {
+    const response = await axios.get('https://example.com', {
+      headers: {
+        'Referer': 'https://google.com/',  // or whatever referrer is appropriate
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+      }
+    });
+
+    const $ = cheerio.load(response.data);
+    const title = $('title').text();
+    console.log('Page Title:', title);
+
+  } catch (error) {
+    console.error('Error fetching the page:', error.message);
+  }
+})();
+
 module.exports = ApiScraper;

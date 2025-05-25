@@ -4,7 +4,7 @@ const axios = require('axios');
 const Config = require('./config');
 
 class RequestManager {
-    static async fetch(url, type, cookieHeader) {
+    static async fetch(url, cookieHeader, type = 'default') {
         if (type === 'default') {
             return this.fetchApiData(url, {}, cookieHeader);
         } else if (type === 'heavy') {
@@ -144,12 +144,7 @@ class RequestManager {
             console.error('Failed to parse JSON:', error.message);
             throw new Error(`Failed to parse JSON from ${url}: ${error.message}`);
         }
-    }
-
-    static async fetchApiData(url, params, cookieHeader) {
-            if(!cookieHeader) {
-                console.log("cookies is empty");
-            }
+    }    static async fetchApiData(url, params, cookieHeader) {
             try {
                 const response = await axios({
                     method: 'get',
@@ -162,14 +157,33 @@ class RequestManager {
                         'Origin': Config.getUrl('home'),
                         'Accept': 'application/json, text/plain, */*',
                         'Accept-Language': 'en-US,en;q=0.9'
+                    },
+                    validateStatus: function (status) {
+                        // Consider all status codes as successful so we can handle them ourselves
+                        return true;
                     }
                 });
+
+                // Handle different status codes
+                if (response.status === 404) {
+                    const error = new Error('Resource not found');
+                    error.response = { status: 404 };
+                    throw error;
+                }
+
+                if (response.status >= 400) {
+                    const error = new Error(`HTTP error ${response.status}`);
+                    error.response = { status: response.status };
+                    throw error;
+                }
     
                 return response.data;
                 
             } catch (error) {
-                console.error('Error fetching API data:', error.message);
-                
+                // Ensure error has a response status if it doesn't
+                if (!error.response) {
+                    error.response = { status: 503 };
+                }
                 throw error;
             }
         }

@@ -2,55 +2,45 @@ const BaseScraper = require('../scrapers/baseScraper');
 const DataProcessor = require('../utils/dataProcessor');
 const Config = require('../utils/config');
 const ApiClient = require('../scrapers/apiClient');
+const { CustomError } = require('../middleware/errorHandler');
 
 class HomeModel extends BaseScraper {
     static async getAiringAnime(page) {
-        try {
-            console.log('Attempting to retrieve API data on page', page);
-            const apiData = await ApiClient.getData("airing", { page });
+        const apiData = await ApiClient.getData("airing", { page });
 
-            console.log("API DATA", apiData);
-            
-            if (apiData && (apiData.data)) {
-                console.log('Successfully retrieved API data');
-                return DataProcessor.processApiData(apiData);
-            } else {
-                console.log('API data not in expected format, falling back to HTML scraping');
-                return this.scrapeHomePage();
+        if (!apiData || !apiData.data) {
+            const htmlData = await this.scrapeHomePage();
+            if (!htmlData || htmlData.length === 0) {
+                throw new CustomError('No airing anime data found', 404);
             }
-        } catch (error) {
-            console.error('API scraping failed:', error.message);
-            console.log('Falling back to HTML scraping');
-            return this.scrapeHomePage();
+            return htmlData;
         }
+
+        return DataProcessor.processApiData(apiData);
     }
 
     static async searchAnime(query, page) {
-        try {
-            console.log('Attempting to retrieve API data on page', page);
-            const apiData = await ApiClient.getData("search", { query, page });
-
-            console.log("API DATA", apiData);
-            
-            if (apiData && (apiData.data)) {
-                console.log('Successfully retrieved API data');
-                return DataProcessor.processApiData(apiData, 'search');
-            } else {
-                console.log('API data not in expected format, falling back to HTML scraping');
-                return this.scrapeHomePage();
-            }
-        } catch (error) {
-            console.error('API scraping failed:', error.message);
-            console.log('Falling back to HTML scraping');
-            return this.scrapeHomePage();
+        if (!query) {
+            throw new CustomError('Search query is required', 400);
         }
+
+        const apiData = await ApiClient.getData("search", { query, page });
+
+        if (!apiData || !apiData.data) {
+            throw new CustomError('No search results found', 404);
+        }
+
+        return DataProcessor.processApiData(apiData, 'search');
     }
     
     static async scrapeHomePage() {
-        console.log('Scraping home page HTML');
         const url = Config.getUrl('home');
         const $ = await this.fetchPage(url);
         
+        if (!$) {
+            throw new CustomError('Failed to load home page', 503);
+        }
+
         const airingAnime = [];
         $('.episode-list .episode-wrap').each((i, element) => {
             airingAnime.push({
@@ -61,14 +51,6 @@ class HomeModel extends BaseScraper {
             });
         });
          
-        console.log(`Scraped ${airingAnime.length} anime items from HTML`);
-
-        if (airingAnime.length === 0) {
-            console.log('No items found');
-
-            return [];
-        }
-        
         return airingAnime;
     }
 }

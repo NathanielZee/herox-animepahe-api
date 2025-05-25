@@ -1,5 +1,6 @@
 const express = require('express');
 const Config = require('./utils/config');
+const { errorHandler } = require('./middleware/errorHandler');
 const homeRoutes = require('./routes/homeRoutes');
 const queueRoutes = require('./routes/queueRoutes');
 const animeListRoutes = require('./routes/animeListRoutes');
@@ -30,6 +31,9 @@ app.use('/api', queueRoutes);
 app.use('/api', animeListRoutes);
 app.use('/api', animeInfoRoutes);
 app.use('/api', playRoutes);
+
+// Error handling middleware
+app.use(errorHandler);
 
 const PORT =  process.env.PORT || 3000;
 app.listen(PORT, () => {

@@ -51,7 +51,10 @@ class DataProcessor {
                     Config.hostUrl
                 ).replace('api?', `api/${type}?`) 
             }),
-            ...(prev_page_url != null && { prevPageUrl: prev_page_url }),
+            ...(prev_page_url != null && { prevPageUrl: prev_page_url.replace(
+                    new RegExp(`^(${Config.baseUrl}|/)`),
+                    Config.hostUrl
+                ).replace('api?', `api/${type}?`)  }),
             ...(from != null && { from }),
             ...(to != null && { to })
         };

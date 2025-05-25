@@ -5,6 +5,7 @@ const path = require('path');
 const Config = require('../utils/config');
 const RequestManager = require("../utils/requestManager");
 const BaseScraper = require('../scrapers/baseScraper');
+const { CustomError } = require('../middleware/errorHandler');
 
 class ApiClient {
     constructor() {
@@ -13,59 +14,54 @@ class ApiClient {
     }
 
     async initialize() {
-        try {
-            // Check if we have valid cookies
-            const needsRefresh = await this.needsCookieRefresh();
-            
-            if (needsRefresh) {
-                console.log('Cookies expired or not found. Refreshing...');
-                await this.refreshCookies();
-            } else {
-                console.log('Using existing cookies');
-            }
-            
-            return true;
-        } catch (error) {
-            console.error('Error initializing API client:', error);
-            return false;
+        const needsRefresh = await this.needsCookieRefresh();
+        
+        if (needsRefresh) {
+            await this.refreshCookies();
         }
+        
+        return true;
     }
 
     async needsCookieRefresh() {
         try {
             const cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
             
-            // Check if cookies exist and aren't too old
-            if (cookieData && cookieData.timestamp) {
+            if (cookieData?.timestamp) {
                 const ageInMs = Date.now() - cookieData.timestamp;
                 return ageInMs > this.cookiesRefreshInterval;
             }
-            return true; // No timestamp or no cookie file
+            return true;
         } catch (error) {
-            return true; // Error reading file, so refresh needed
+            return true;
         }
-    }
+    }    
 
     async refreshCookies() {
-        console.log('Getting fresh cookies from website...');
-        const browser = await chromium.launch({ headless: true });
+       console.log('Refreshing cookies...');
+
+        let browser;
+        try {
+            browser = await chromium.launch({ headless: true });
+        } catch (error) {
+            if (error.message.includes("Executable doesn't exist")) {
+                throw new CustomError('Browser setup required. Please run: npx playwright install', 500);
+            }
+            throw new CustomError('Failed to launch browser', 500);
+        }
+
         const context = await browser.newContext();
         const page = await context.newPage();
 
         try {
-            // Navigate to the site
             await page.goto(Config.getUrl('home'), { 
                 waitUntil: 'networkidle',
                 timeout: 30000 
             });
             
-            // Wait for any DDOS protection or cookie setup to complete
             await page.waitForTimeout(5000);
             
-            // Get all cookies
             const cookies = await context.cookies();
-            
-            // Save cookies with timestamp
             const cookieData = {
                 timestamp: Date.now(),
                 cookies: cookies
@@ -73,124 +69,104 @@ class ApiClient {
             
             await fs.mkdir(path.dirname(this.cookiesPath), { recursive: true });
             await fs.writeFile(this.cookiesPath, JSON.stringify(cookieData, null, 2));
-            
-            console.log('Cookies saved successfully');
+
+            console.log('Cookies refreshed successfully');
         } catch (error) {
-            console.error('Error refreshing cookies:', error);
-            throw error;
+            throw new CustomError('Failed to refresh cookies', 503);
         } finally {
-            await browser.close();
+            await browser?.close();
         }
     }
 
     async getCookies() {
         await this.initialize();
 
-        const cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
-            
-        const cookieHeader = cookieData.cookies
-            .map(cookie => `${cookie.name}=${cookie.value}`)
-            .join('; ');
-
-        Config.setCookies(cookieHeader);
-
-        return Config.cookies;
-    }
-
-    async fetchApiData(endpoint, params = {}) {
-        console.log(endpoint, params);
-        
         try {
-            // Load cookies
-            const cookieHeader = await this.getCookies();
+            const cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
+            const cookieHeader = cookieData.cookies
+                .map(cookie => `${cookie.name}=${cookie.value}`)
+                .join('; ');
 
-            console.log("Cookie Header: ", cookieHeader);
-            
-            // Build URL with query parameters
-            const url = new URL(endpoint, Config.getUrl('home')).toString();
-            
-            console.log(`Fetching API data from: ${url}`);
-            
-            const data = await RequestManager.fetchApiData(url, params, cookieHeader);
-
-            /*
-                LASTLY JUST LIKE HOW ONE CAN CHOOSE IF ONE PREFERS FETCH, ONE SHOULD ALSO BE ABLE TO re-GET THE COOKIES THROUGH PARAMS
-            */
-            
-            return data;
-            
+            Config.setCookies(cookieHeader);
+            return Config.cookies;
         } catch (error) {
-            console.error('Error fetching API data:', error.message);
-            
-            // If unauthorized, try refreshing cookies and try again
-            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                console.log('Authentication error, refreshing cookies and retrying...');
-                await this.refreshCookies();
-                return this.fetchApiData(endpoint, params); // Recursive retry once
-            }
-            
-            throw error;
+            throw new CustomError('Failed to get cookies', 503);
         }
     }
 
-    // Direct browser scraping approach
+    async fetchApiData(endpoint, params = {}) {
+        try {
+            const cookieHeader = await this.getCookies();
+            const url = new URL(endpoint, Config.getUrl('home')).toString();
+            return await RequestManager.fetchApiData(url, params, cookieHeader);
+        } catch (error) {
+            if (error.response?.status === 401 || error.response?.status === 403) {
+                await this.refreshCookies();
+                return this.fetchApiData(endpoint, params);
+            }
+            throw new CustomError(error.message || 'Failed to fetch API data', error.response?.status || 503);
+        }
+    }    
+    
     async scrapeApiData(endpoint, pageUrl, waitTime = 10000) {
-        console.log(`Scraping API data from: ${pageUrl}`);
-        
-        const browser = await chromium.launch({ headless: true });
+        let browser;
+        try {
+            browser = await chromium.launch({ headless: true });
+        } catch (error) {
+            if (error.message.includes("Executable doesn't exist")) {
+                throw new CustomError('Browser setup required. Please run: npx playwright install', 500);
+            }
+            throw new CustomError('Failed to launch browser', 500);
+        }
+
         const context = await browser.newContext();
         const page = await context.newPage();
-        
         let apiData = null;
         
-        // Set up response intercept
-        page.on('response', async (response) => {
-            try {
-                const url = response.url();
-                
-                if (url.includes(endpoint)) {
-                    console.log(`Intercepted API response: ${url}`);
-                    
-                    if (response.status() === 200 && 
+        try {
+            page.on('response', async (response) => {
+                try {
+                    const url = response.url();
+                    if (url.includes(endpoint) && 
+                        response.status() === 200 && 
                         response.headers()['content-type']?.includes('application/json')) {
                         apiData = await response.json();
-                        console.log('Successfully captured JSON data');
                     }
+                } catch (error) {
+                    // Ignore response capture errors
                 }
-            } catch (error) {
-                console.error('Error capturing API response:', error.message);
-            }
-        });
-        
-        try {
-            // Navigate to the page
+            });
+
             await page.goto(pageUrl, { 
                 waitUntil: 'domcontentloaded', 
                 timeout: 60000 
             });
             
-            // Wait for potential API calls to complete
             await page.waitForTimeout(waitTime);
-            
-            // Wait for a common selector to ensure page is loaded
             await page.waitForSelector('body', { timeout: 5000 });
-            
+
+            if (!apiData) {
+                throw new CustomError('No API data found', 404);
+            }
+
+            return apiData;
         } catch (error) {
-            console.error('Error during page scraping:', error.message);
+            if (error instanceof CustomError) throw error;
+            throw new CustomError(error.message || 'Failed to scrape API data', 503);
         } finally {
-            await browser.close();
+            await browser?.close();
         }
-        
-        return apiData;
     }
 
-    // Convenience methods using cookie-based fetch
+    // API Methods
     async fetchAiringData(page = 1) {
         return this.fetchApiData('/api', { m: 'airing', page });
     }
 
     async fetchSearchData(query, page) {
-        console.log("Trying to search for", query);
+        if (!query) {
+            throw new CustomError('Search query is required', 400);
+        }
         return this.fetchApiData('/api', { m: 'search', q: query, page });
     }
 
@@ -199,156 +175,126 @@ class ApiClient {
     }
 
     async fetchAnimeRelease(id, sort, page) {
+        if (!id) {
+            throw new CustomError('Anime ID is required', 400);
+        }
         return this.fetchApiData('/api', { m: 'release', id, sort, page });
     }
-    
-    // Convenience methods using direct scraping
+
+    // Scraping Methods
     async scrapeAiringData(page = 1) {
         const pageUrl = `${Config.getUrl('home')}?page=${page}`;
         return this.scrapeApiData('/api?m=airing', pageUrl);
     }
-    
-        async scrapeAnimeInfo(animeId) {
+
+    async scrapeAnimeInfo(animeId) {
+        if (!animeId) {
+            throw new CustomError('Anime ID is required', 400);
+        }
+
         const url = `${Config.getUrl('animeInfo')}${animeId}`;
-
-        console.log('Scraping anime info...', url);
-
         const cookieHeader = await this.getCookies();
+        const html = await RequestManager.fetch(url, cookieHeader);
 
-        console.log("CookieHeader", cookieHeader);
-
-        const html = await RequestManager.fetch(url, 'default', cookieHeader);
+        if (!html) {
+            throw new CustomError('Failed to fetch anime info', 503);
+        }
 
         return html;
     }
-    
+
     async scrapeAnimeList(tag1, tag2) {
         const url = tag1 || tag2 
             ? `${Config.getUrl('animeList', tag1, tag2)}`
             : `${Config.getUrl('animeList')}`;
 
-        console.log(`Fetching anime list at ${url}`);
-
         const cookieHeader = await this.getCookies();
-        
-        const html = await RequestManager.fetch(url, 'default', cookieHeader);
+        const html = await RequestManager.fetch(url, cookieHeader);
+
+        if (!html) {
+            throw new CustomError('Failed to fetch anime list', 503);
+        }
 
         return html;
-    }
-    
-    async scrapeIframe(episodeId) {
-        const url = Config.getUrl('play', episodeId);
+    }    async scrapePlayPage(id, episodeId) {
+        if (!id || !episodeId) {
+            throw new CustomError('Both ID and episode ID are required', 400);
+        }
 
-        console.log('Scraping play page...', url);
-
+        const url = Config.getUrl('play', id, episodeId);
         const cookieHeader = await this.getCookies();
-
-        console.log("CookieHeader", cookieHeader);
-
-        const html = await RequestManager.fetch(url, 'default', cookieHeader);
-
-        return html;
-    }
-
-    async scrapeSearchData(query) {
-        // Create the browser instance with additional options to intercept searches
-        const browser = await chromium.launch({ headless: true });
-        const context = await browser.newContext();
-        const page = await context.newPage();
-        
-        let searchResults = null;
-        
-        // Set up response listener
-        page.on('response', async (response) => {
-            try {
-                const url = response.url();
-                if (url.includes('/api') && url.includes('search')) {
-                    if (response.status() === 200 && 
-                        response.headers()['content-type']?.includes('application/json')) {
-                        searchResults = await response.json();
-                        console.log('Search results captured');
-                    }
-                }
-            } catch (error) {
-                console.error('Error intercepting search response:', error.message);
-            }
-        });
         
         try {
-            // Navigate to the homepage
-            await page.goto(Config.getUrl('home'), { waitUntil: 'domcontentloaded' });
-            
-            // Find and use the search input
-            await page.waitForSelector('input[type="search"], .input-search, input[placeholder*="search"], form input[type="text"]', 
-                { timeout: 10000 });
-            
-            const searchInput = await page.$('input[type="search"], .input-search, input[placeholder*="search"], form input[type="text"]');
-            if (searchInput) {
-                await searchInput.fill(query);
-                await searchInput.press('Enter');
-                
-                // Wait for results
-                await page.waitForTimeout(10000);
+            const html = await RequestManager.fetch(url, cookieHeader);
+            if (!html) {
+                throw new CustomError('Failed to fetch play page', 503);
             }
-            
+            return html;
         } catch (error) {
-            console.error('Error performing search scrape:', error.message);
-        } finally {
-            await browser.close();
+            // If it's a 404, means the anime or episode doesn't exist
+            if (error.response?.status === 404) {
+                throw new CustomError('Anime or episode not found', 404);
+            }
+            throw error;
         }
-        
-        return searchResults;
+    }
+
+    async scrapeIframe(url) {
+        if (!url) {
+            throw new CustomError('URL is required', 400);
+        }
+
+        const cookieHeader = await this.getCookies();
+        const html = await RequestManager.fetch(url, cookieHeader);
+
+        if (!html) {
+            throw new CustomError('Failed to fetch iframe', 503);
+        }
+
+        return html;
     }
 
     async getData(type, params, preferFetch = true) {
-        console.log(type);
         try {
-            // Try the preferred method first
             if (preferFetch) {
-                if (type === 'airing') {
-                    return await this.fetchAiringData(params.page || 1);
-                } else if (type === 'search') {
-                    return await this.fetchSearchData(params.query, params.page);
-                } else if (type === 'queue') {
-                    return await this.fetchQueueData();
-                } else if (type === 'releases') {
-                    return await this.fetchAnimeRelease(params.animeId, params.sort, params.page);
+                switch (type) {
+                    case 'airing':
+                        return await this.fetchAiringData(params.page || 1);
+                    case 'search':
+                        return await this.fetchSearchData(params.query, params.page);
+                    case 'queue':
+                        return await this.fetchQueueData();
+                    case 'releases':
+                        return await this.fetchAnimeRelease(params.animeId, params.sort, params.page);
                 }
+            } else {
+                switch (type) {
+                    case 'airing':
+                        return await this.scrapeAiringData(params.page || 1);
+                    case 'search':
+                        return await this.scrapeSearchData(params.query);
+                    case 'animeList':
+                        return await this.scrapeAnimeList(params.tag1, params.tag2);
+                    case 'animeInfo':
+                        return await this.scrapeAnimeInfo(params.animeId);
+                    case 'play':
+                        return await this.scrapePlayPage(params.id, params.episodeId);
+                    case 'iframe':
+                        return await this.scrapeIframe(params.url);
+                }
+            }
 
-            } else {
-                if (type === 'airing') {
-                    return await this.scrapeAiringData(params.page || 1);
-                } else if (type === 'search') {
-                    return await this.scrapeSearchData(params.query);
-                }  else if (type === 'animeList') {
-                    return await this.scrapeAnimeList(params.tag1, params.tag2);
-                } 
-                else if (type === 'animeInfo') {
-                    return await this.scrapeAnimeInfo(params.animeId);
-                } else if (type === 'play') {
-                    return await this.scrapeIframe(params.episodeId)
-                }
-            }
+            throw new CustomError(`Unsupported data type: ${type}`, 400);
         } catch (error) {
-            console.error(`Error using preferred method (${preferFetch ? 'fetch' : 'scrape'}). Trying fallback...`);
-            console.log(error);
-            // Fallback to the other method
+            if (error instanceof CustomError) throw error;
+
+            // Try fallback if primary method fails
             if (preferFetch) {
-                if (type === 'airing') {
-                    return await this.scrapeAiringData(params.page || 1);
-                } else if (type === 'search') {
-                    return await this.scrapeSearchData(params.query);
-                }
-            } else {
-                if (type === 'airing') {
-                    return await this.fetchAiringData(params.page || 1);
-                } else if (type === 'search') {
-                    return await this.fetchSearchData(params.query);
-                }
+                return this.getData(type, params, false);
             }
+            
+            throw new CustomError(error.message || 'Failed to get data', 503);
         }
-        
-        throw new Error(`Unsupported data type: ${type} (${typeof type})`);
     }
 }
 

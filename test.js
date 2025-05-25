@@ -1,6 +1,38 @@
 const axios = require('axios');
 const HomeModel = require('./models/homeModel');
 
+(async () => {
+  try {
+    const response = await axios.get('https://kwik.si/e/20mY5NRELd7H', {
+      headers: {
+        'Referer': 'https://animepahe.ru/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+      }
+    });
+
+    const data = response.data;
+
+    let sources = [];
+
+    const execResult = /(eval)(\(f.*?)(\n<\/script>)/s.exec(data);
+    const source = execResult ? eval(execResult[2].replace('eval', '')).match(
+        /https.*?m3u8/
+    ) : null;
+
+    sources.push({
+        url: source[0],
+        isM3U8: source[0].includes('.m3u8'),
+    });
+
+    console.log(sources)
+
+    return sources;
+
+  } catch (error) {
+    console.error('Error fetching the page:', error.message);
+  }
+})();
+
 
 async function testHomeModel() {
     try {
@@ -50,7 +82,7 @@ async function fetchProxies() {
     return Array.from(proxies);
 }
 
-fetchProxies();
+// fetchProxies();
 
 async function validateProxy(proxy) {
     try {
@@ -94,4 +126,4 @@ async function fetchAnimeData() {
 }
 
 // Run the function
-fetchAnimeData();
+// fetchAnimeData();
