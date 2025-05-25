@@ -1,3 +1,6 @@
+const dotenv = require('dotenv');
+dotenv.config();
+
 class Config {
     constructor() {
         this.hostUrl = '';
@@ -5,6 +8,7 @@ class Config {
         this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
         this.cookies = '';
         this.proxies = [];
+        this.proxyEnabled = false;
     }
 
     setHostUrl(protocol, host) {
@@ -16,10 +20,41 @@ class Config {
 
     setCookies(cookieHeader) {
         if(!cookieHeader) {
-            console.log("Cookie Header missing");
-        } else {
-            console.log("Cookies Set!");
-            this.cookies = cookieHeader;
+            console.warn("Warning: Cookie Header is missing or empty");
+            return false;
+        }
+        
+        try {
+            if(typeof cookieHeader === 'string' && cookieHeader.includes('=')) {
+                this.cookies = cookieHeader;
+                console.log("Cookies successfully set");
+                return true;
+            } else {
+                console.warn("Warning: Invalid cookie format");
+                return false;
+            }
+        } catch(error) {
+            console.error("Error setting cookies:", error.message);
+            return false;
+        }
+    }
+
+    setProxy(proxyString) {
+        if(!proxyString) {
+            console.warn("Warning: Proxy string is empty");
+            return false;
+        }
+
+        try {
+            // Validate proxy format (basic check)
+            const proxyUrl = new URL(proxyString.startsWith('http') ? proxyString : `http://${proxyString}`);
+            if(proxyUrl.hostname) {
+                return true;
+            }
+            return false;
+        } catch(error) {
+            console.warn(`Invalid proxy format: ${proxyString}`);
+            return false;
         }
     }
 
@@ -55,20 +90,46 @@ class Config {
         if (process.env.BASE_URL) {
             this.baseUrl = process.env.BASE_URL;
         }
+        
         if (process.env.USER_AGENT) {
             this.userAgent = process.env.USER_AGENT;
         }
+        
         if (process.env.HOST_URL) {
             this.hostUrl = process.env.HOST_URL;
         }
+
+        // Handle cookies
         if (process.env.COOKIES) {
-            this.cookies = process.env.COOKIES;
+            console.log("Setting cookies from environment variables...", process.env.COOKIES);
+            const cookiesSet = this.setCookies(process.env.COOKIES);
+            if (!cookiesSet) {
+                console.warn("Failed to set cookies from environment variables");
+            }
         }
+
+        // Handle proxies
         if (process.env.PROXIES) {
-            this.proxies = process.env.PROXIES.split(',');
+            try {
+                const proxyList = process.env.PROXIES.split(',').map(proxy => proxy.trim());
+                const validProxies = proxyList.filter(proxy => this.setProxy(proxy));
+                
+                if (validProxies.length === 0) {
+                    console.warn("No valid proxies found in environment variables");
+                    this.proxies = [];
+                } else {
+                    this.proxies = validProxies;
+                    console.log(`Successfully loaded ${validProxies.length} proxies`);
+                }
+            } catch (error) {
+                console.error("Error processing proxies from environment variables:", error.message);
+                this.proxies = [];
+            }
         }
-        if (process.env.USE_PROXY === 'true') {
-            this.proxyEnabled = true;
+
+        this.proxyEnabled = process.env.USE_PROXY === 'true';
+        if (this.proxyEnabled && this.proxies.length === 0) {
+            console.warn("Proxy usage is enabled but no valid proxies are configured");
         }
     }
 

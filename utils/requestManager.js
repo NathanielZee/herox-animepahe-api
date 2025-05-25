@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const cheerio = require('cheerio');
 const axios = require('axios');
 const Config = require('./config');
+const { CustomError } = require('../middleware/errorHandler');
 
 class RequestManager {
     static async fetch(url, cookieHeader, type = 'default') {
@@ -16,16 +17,15 @@ class RequestManager {
     }
 
     static async scrapeWithPlaywright(url) {
-        console.log('Fetching content from:', url);
-
-        const proxy = Config.getRandomProxy();
-        // console.log(`Using proxy: ${proxy || 'none'}`);
+        console.log('Fetching content from:', url);        
+        const proxy = Config.proxyEnabled ? Config.getRandomProxy() : null;
+        console.log(`Using proxy: ${proxy || 'none'}`);
 
         const browser = await chromium.launch({
             headless: true,
-            // proxy: proxy ? {
-            //     server: proxy,
-            // } : undefined,
+            proxy: proxy ? {
+                server: proxy,
+            } : undefined,
         });
 
         try {
@@ -125,48 +125,53 @@ class RequestManager {
             console.error('Failed to parse JSON:', error.message);
             throw new Error(`Failed to parse JSON from ${url}: ${error.message}`);
         }
-    }    static async fetchApiData(url, params, cookieHeader) {
-            try {
-                const response = await axios({
-                    method: 'get',
-                    url: url,
-                    params: params,
-                    headers: {
-                        'Cookie': cookieHeader,
-                        'User-Agent': Config.userAgent,
-                        'Referer': Config.getUrl('home'),
-                        'Origin': Config.getUrl('home'),
-                        'Accept': 'application/json, text/plain, */*',
-                        'Accept-Language': 'en-US,en;q=0.9'
-                    },
-                    validateStatus: function (status) {
-                        // Accept all status codes
-                        return true;
-                    }
-                });
-
-                // Handle different status codes
-                if (response.status === 404) {
-                    const error = new Error('Resource not found');
-                    error.response = { status: 404 };
-                    throw error;
-                }
-
-                if (response.status >= 400) {
-                    const error = new Error(`HTTP error ${response.status}`);
-                    error.response = { status: response.status };
-                    throw error;
-                }
-    
-                return response.data;
-                
-            } catch (error) {
-                if (!error.response) {
-                    error.response = { status: 503 };
-                }
-                throw error;
+    }    
+    static async fetchApiData(url, params = {}, cookieHeader) {
+        try {
+            if (!cookieHeader) {
+                throw new CustomError('DDoS-Guard authentication required', 403);
             }
+
+            console.log("cookieHeader:", cookieHeader);
+
+            const proxyUrl = Config.proxyEnabled ? Config.getRandomProxy() : null;
+            const [proxyHost, proxyPort] = proxyUrl ? proxyUrl.split(':') : [null, null];
+
+            console.log(`Using proxy: ${proxyUrl || 'none'}`);
+            if (proxyHost && !proxyPort) {
+                throw new CustomError('Invalid proxy format. Expected format: host:port', 400);
+            }
+
+            const response = await axios.get(url, {
+                params: params,
+                headers: {
+                    'User-Agent': Config.userAgent,
+                    'Cookie': cookieHeader
+                },
+                proxy: proxyUrl ? {
+                    host: proxyHost,
+                    port: parseInt(proxyPort),
+                    protocol: 'http'
+                } : false
+            });
+
+            const responseText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+            if (responseText.includes('DDoS-GUARD') || 
+                responseText.includes('checking your browser') ||
+                response.status === 403) {
+                // This will trigger a cookie refresh in Animepahe.fetchApiData
+                throw new CustomError('DDoS-Guard authentication required, valid cookies required', 403);
+            }
+
+            return response.data;
+        } catch (error) {
+            if (error.response?.status === 403) {
+                // Let Animepahe handle the cookie refresh
+                throw new CustomError('DDoS-Guard authentication required, invalid cookies', 403);
+            }
+            throw error;
         }
+    }
 }
 
 module.exports = RequestManager;

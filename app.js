@@ -9,8 +9,11 @@ const playRoutes = require('./routes/playRoutes');
 
 const app = express();
 
+// Load environment variables into Config
+
 try {
     Config.validate();
+    Config.loadFromEnv();
     console.log('Configuration is valid.');
 } catch (error) {
     console.error(error.message);

@@ -1,6 +1,5 @@
 const cheerio = require('cheerio');
 const DataProcessor = require('../utils/dataProcessor');
-const Config = require('../utils/config');
 const Animepahe = require('../scrapers/animepahe');
 const { getJsVariable } = require('../utils/jsParser');
 const { CustomError } = require('../middleware/errorHandler');

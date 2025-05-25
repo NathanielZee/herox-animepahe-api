@@ -1,5 +1,4 @@
 const { chromium } = require('playwright');
-const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
@@ -77,7 +76,22 @@ class Animepahe {
         }
     }
 
-    async getCookies() {
+    async getCookies(userProvidedCookies = null) {
+        // If user provided cookies directly, use them
+        if (userProvidedCookies) {
+            if (typeof userProvidedCookies === 'string' && userProvidedCookies.trim()) {
+                console.log('Using user-provided cookies');
+                return userProvidedCookies.trim();
+            } else {
+                throw new CustomError('Invalid user-provided cookies format', 400);
+            }
+        }
+        console.log('No user-provided cookies, checking Config...');
+        if (Config.cookies && Config.cookies.trim()) {
+            console.log('Using cookies from Config (.env file)');
+            return Config.cookies.trim();
+        }
+
         await this.initialize();
 
         try {
@@ -93,19 +107,20 @@ class Animepahe {
         }
     }
 
-    async fetchApiData(endpoint, params = {}) {
+    async fetchApiData(endpoint, params = {}, userProvidedCookies = null) {
         try {
-            const cookieHeader = await this.getCookies();
+            const cookieHeader = await this.getCookies(userProvidedCookies);
             const url = new URL(endpoint, Config.getUrl('home')).toString();
             return await RequestManager.fetchApiData(url, params, cookieHeader);
         } catch (error) {
-            if (error.response?.status === 401 || error.response?.status === 403) {
+            // Only retry with automatic cookies if user didn't provide cookies
+            if (!userProvidedCookies && (error.response?.status === 401 || error.response?.status === 403)) {
                 await this.refreshCookies();
-                return this.fetchApiData(endpoint, params);
+                return this.fetchApiData(endpoint, params, userProvidedCookies);
             }
             throw new CustomError(error.message || 'Failed to fetch API data', error.response?.status || 503);
         }
-    }    
+    }
     
     async scrapeApiData(endpoint, pageUrl, waitTime = 10000) {
         let browser;
@@ -132,7 +147,7 @@ class Animepahe {
                         apiData = await response.json();
                     }
                 } catch (error) {
-                    // Ignore response capture errors
+                    
                 }
             });
 
@@ -158,33 +173,29 @@ class Animepahe {
     }
 
     // API Methods
-    async fetchAiringData(page = 1) {
-        return this.fetchApiData('/api', { m: 'airing', page });
+    async fetchAiringData(page = 1, userProvidedCookies = null) {
+        return this.fetchApiData('/api', { m: 'airing', page }, userProvidedCookies = null);
     }
 
-    async fetchSearchData(query, page) {
+    async fetchSearchData(query, page, userProvidedCookies = null) {
         if (!query) {
             throw new CustomError('Search query is required', 400);
         }
-        return this.fetchApiData('/api', { m: 'search', q: query, page });
+        return this.fetchApiData('/api', { m: 'search', q: query, page }, userProvidedCookies = null);
     }
 
     async fetchQueueData() {
-        return this.fetchApiData('/api', { m: 'queue' });
+        return this.fetchApiData('/api', { m: 'queue' }, userProvidedCookies = null);
     }
 
-    async fetchAnimeRelease(id, sort, page) {
+    async fetchAnimeRelease(id, sort, page, userProvidedCookies = null) {
         if (!id) {
             throw new CustomError('Anime ID is required', 400);
         }
-        return this.fetchApiData('/api', { m: 'release', id, sort, page });
+        return this.fetchApiData('/api', { m: 'release', id, sort, page }, userProvidedCookies = null);
     }
 
     // Scraping Methods
-    async scrapeAiringData(page = 1) {
-        const pageUrl = `${Config.getUrl('home')}?page=${page}`;
-        return this.scrapeApiData('/api?m=airing', pageUrl);
-    }
 
     async scrapeAnimeInfo(animeId) {
         if (!animeId) {

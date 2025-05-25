@@ -13,6 +13,8 @@ An unofficial REST API for [Animepahe](https://animepahe.ru/) that provides acce
 - ⚡ Fast and reliable
 - 🛡️ Built-in DDoS protection bypass
 - 🔄 Automatic cookie management
+- 🌐 Proxy support for enhanced reliability
+- 🔒 Configurable through environment variables
 
 ## Installation
 
@@ -26,8 +28,43 @@ cd animepahe-api
 # Install dependencies
 npm install
 
-# Install Playwright browsers (required for scraping)
+# Install Playwright browsers (required for scraping and cookies auto-refresh)
 npx playwright install
+
+# Create .env file from example
+copy .env.example .env  # On Windows
+# cp .env.example .env  # On Unix-based systems
+```
+
+## Configuration
+
+While not compulsory cause it comes with default values already (except for adding proxies)..
+You can Create a `.env` file in the root directory that will override the default, possible variables are:
+
+```env
+# Base configuration
+PORT=3000
+BASE_URL=https://animepahe.com
+USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+
+# Cookie configuration
+COOKIES=your_cookies_here    # Optional: Cookies for authenticated requests
+
+# Proxy configuration
+USE_PROXY=false             # Set to 'true' to enable proxy support
+PROXIES=http://proxy1.com,http://proxy2.com    # Comma-separated list of proxy servers
+```
+
+### Cookie Format
+The `COOKIES` variable should be in standard cookie header format:
+```
+cookie1=value1; cookie2=value2
+```
+
+### Proxy Format
+The `PROXIES` variable should be a comma-separated list of proxy URLs:
+```
+http://proxy1.com:8080,http://user:pass@proxy2.com:8080
 ```
 
 ## Usage

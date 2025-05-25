@@ -1,7 +1,6 @@
 const cheerio = require('cheerio');
 const DataProcessor = require('../utils/dataProcessor');
 const Animepahe = require('../scrapers/animepahe');
-const Config = require('../utils/config');
 const { CustomError } = require('../middleware/errorHandler');
 
 class AnimeListModel {
