@@ -1,14 +1,14 @@
 const cheerio = require('cheerio');
 const BaseScraper = require('../scrapers/baseScraper');
 const DataProcessor = require('../utils/dataProcessor');
-const ApiClient = require('../scrapers/apiClient');
+const Animepahe = require('../scrapers/animepahe');
 const Config = require('../utils/config');
 const { getJsVariable } = require('../utils/jsParser');
 const { CustomError } = require('../middleware/errorHandler');
 
 class AnimeInfoModel extends BaseScraper {
     static async getAnimeInfo(animeId) {
-        const apiData = await ApiClient.getData("animeInfo", { animeId }, false);
+        const apiData = await Animepahe.getData("animeInfo", { animeId }, false);
         
         if (apiData?.data) {
             return DataProcessor.processApiData(apiData);
@@ -18,7 +18,7 @@ class AnimeInfoModel extends BaseScraper {
     }
     
     static async getAnimeReleases(animeId, sort, page) {
-        const apiData = await ApiClient.getData("releases", { animeId, sort, page });
+        const apiData = await Animepahe.getData("releases", { animeId, sort, page });
 
         if (!apiData) {
             throw new CustomError('Failed to fetch anime releases', 503);

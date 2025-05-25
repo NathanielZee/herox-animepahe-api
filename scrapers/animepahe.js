@@ -4,10 +4,10 @@ const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
 const RequestManager = require("../utils/requestManager");
-const BaseScraper = require('../scrapers/baseScraper');
+const BaseScraper = require('./baseScraper');
 const { CustomError } = require('../middleware/errorHandler');
 
-class ApiClient {
+class Animepahe {
     constructor() {
         this.cookiesPath = path.join(__dirname, '../data/cookies.json');
         this.cookiesRefreshInterval = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
@@ -231,7 +231,6 @@ class ApiClient {
             }
             return html;
         } catch (error) {
-            // If it's a 404, means the anime or episode doesn't exist
             if (error.response?.status === 404) {
                 throw new CustomError('Anime or episode not found', 404);
             }
@@ -298,4 +297,4 @@ class ApiClient {
     }
 }
 
-module.exports = new ApiClient();
+module.exports = new Animepahe();

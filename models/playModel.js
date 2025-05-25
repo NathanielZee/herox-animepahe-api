@@ -2,13 +2,13 @@ const cheerio = require('cheerio');
 const BaseScraper = require('../scrapers/baseScraper');
 const DataProcessor = require('../utils/dataProcessor');
 const Config = require('../utils/config');
-const ApiClient = require('../scrapers/apiClient');
+const Animepahe = require('../scrapers/animepahe');
 const { getJsVariable } = require('../utils/jsParser');
 const { CustomError } = require('../middleware/errorHandler');
 
 class PlayModel extends BaseScraper {
     static async getStreamingLinks(id, episodeId) {
-        const apiData = await ApiClient.getData("play", { id, episodeId }, false);
+        const apiData = await Animepahe.getData("play", { id, episodeId }, false);
         
         if (!apiData) {
             throw new CustomError('Failed to fetch streaming data', 503);
@@ -26,7 +26,7 @@ class PlayModel extends BaseScraper {
     }
 
     static async scrapeIframe(url) {
-        const data = await ApiClient.getData("iframe", { url }, false);
+        const data = await Animepahe.getData("iframe", { url }, false);
         if (!data) {
             throw new CustomError('Failed to fetch iframe data', 503);
         }
