@@ -6,21 +6,21 @@ const { CustomError } = require('../middleware/errorHandler');
 
 class PlayModel {
     static async getStreamingLinks(id, episodeId) {
-        const apiData = await Animepahe.getData("play", { id, episodeId }, false);
+        const results = await Animepahe.getData("play", { id, episodeId }, false);
         
-        if (!apiData) {
+        if (!results) {
             throw new CustomError('Failed to fetch streaming data', 503);
         }
 
-        if (typeof apiData === 'object' && !apiData.data) {
-            apiData.data = [];
+        if (typeof results === 'object' && !results.data) {
+            results.data = [];
         }    
         
-        if (apiData.data) {
-            return DataProcessor.processApiData(apiData);
+        if (results.data) {
+            return DataProcessor.processApiData(results);
         }
         
-        return this.scrapePlayPage(apiData);
+        return this.scrapePlayPage(results);
     }
 
     static async scrapeIframe(url) {

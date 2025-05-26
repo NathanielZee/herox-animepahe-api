@@ -5,13 +5,13 @@ const { CustomError } = require('../middleware/errorHandler');
 
 class AnimeListModel {
     static async getAnimeList(tab, tag1, tag2) {
-        const apiData = await Animepahe.getData("animeList", { tag1, tag2 }, false);
+        const results = await Animepahe.getData("animeList", { tag1, tag2 }, false);
         
-        if (apiData?.data) {
-            return DataProcessor.processApiData(apiData);
+        if (results?.data) {
+            return DataProcessor.processApiData(results);
         }
         
-        return this.scrapeAnimeListPage(apiData, tab);
+        return this.scrapeAnimeListPage(results, tab);
     }
 
     static async scrapeAnimeListPage(pageHtml, tab) {

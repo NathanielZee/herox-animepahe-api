@@ -5,17 +5,17 @@ const { CustomError } = require('../middleware/errorHandler');
 
 class QueueModel {
     static async getQueue() {
-        const apiData = await Animepahe.getData("queue");
+        const results = await Animepahe.getData("queue");
 
-        if (!apiData) {
+        if (!results) {
             throw new CustomError('Failed to fetch queue data', 503);
         }
 
-        if (typeof apiData === 'object' && !apiData.data) {
-            apiData.data = [];
+        if (typeof results === 'object' && !results.data) {
+            results.data = [];
         }
 
-        return DataProcessor.processApiData(apiData, "queue");
+        return DataProcessor.processApiData(results, "queue");
     }
 }
 

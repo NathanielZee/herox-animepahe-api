@@ -5,9 +5,9 @@ const { CustomError } = require('../middleware/errorHandler');
 
 class HomeModel {
     static async getAiringAnime(page) {
-        const apiData = await Animepahe.getData("airing", { page });
+        const results = await Animepahe.getData("airing", { page });
 
-        if (!apiData || !apiData.data) {
+        if (!results || !results.data) {
             const htmlData = await this.scrapeHomePage();
             if (!htmlData || htmlData.length === 0) {
                 throw new CustomError('No airing anime data found', 404);
@@ -15,7 +15,7 @@ class HomeModel {
             return htmlData;
         }
 
-        return DataProcessor.processApiData(apiData);
+        return DataProcessor.processApiData(results);
     }
 
     static async searchAnime(query, page) {
@@ -23,13 +23,13 @@ class HomeModel {
             throw new CustomError('Search query is required', 400);
         }
 
-        const apiData = await Animepahe.getData("search", { query, page });
+        const results = await Animepahe.getData("search", { query, page });
 
-        if (!apiData || !apiData.data) {
+        if (!results || !results.data) {
             throw new CustomError('No search results found', 404);
         }
 
-        return DataProcessor.processApiData(apiData, 'search');
+        return DataProcessor.processApiData(results, 'search');
     }
     
     static async scrapeHomePage() {

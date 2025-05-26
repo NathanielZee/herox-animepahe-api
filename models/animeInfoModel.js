@@ -6,32 +6,32 @@ const { CustomError } = require('../middleware/errorHandler');
 
 class AnimeInfoModel {
     static async getAnimeInfo(animeId) {
-        const apiData = await Animepahe.getData("animeInfo", { animeId }, false);
+        const results = await Animepahe.getData("animeInfo", { animeId }, false);
         
-        if (apiData?.data) {
-            return DataProcessor.processApiData(apiData);
+        if (results?.data) {
+            return DataProcessor.processApiData(results);
         }
         
-        return this.scrapeInfoPage(apiData);
+        return this.scrapeInfoPage(results);
     }
     
     static async getAnimeReleases(animeId, sort, page) {
-        const apiData = await Animepahe.getData("releases", { animeId, sort, page });
+        const results = await Animepahe.getData("releases", { animeId, sort, page });
 
-        if (!apiData) {
+        if (!results) {
             throw new CustomError('Failed to fetch anime releases', 503);
         }
 
-        if (typeof apiData === 'object' && !apiData.data) {
-            apiData.data = [];
+        if (typeof results === 'object' && !results.data) {
+            results.data = [];
         }
 
-        if (!apiData.data) {
+        if (!results.data) {
             throw new CustomError('No release data available', 404);
         }
 
-        apiData.data.forEach(item => item._id = animeId);
-        return DataProcessor.processApiData(apiData, "releases");
+        results.data.forEach(item => item._id = animeId);
+        return DataProcessor.processApiData(results, "releases");
     }
     
     static async scrapeInfoPage(pageHtml) {
