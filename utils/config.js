@@ -101,6 +101,10 @@ class Config {
 
         // Handle cookies
         if (process.env.COOKIES) {
+            const cookiePattern = /^([^=]+=[^;]+)(; [^=]+=[^;]+)*$/;
+            if (!cookiePattern.test(process.env.COOKIES)) {
+                console.warn("Invalid cookie format in environment variables");
+            }
             console.log("Setting cookies from environment variables...", process.env.COOKIES);
             const cookiesSet = this.setCookies(process.env.COOKIES);
             if (!cookiesSet) {

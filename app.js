@@ -14,7 +14,7 @@ const app = express();
 try {
     Config.validate();
     Config.loadFromEnv();
-    console.log('Configuration is valid.');
+    console.log('\x1b[36m%s\x1b[0m', 'Configuration is valid.');
 } catch (error) {
     console.error(error.message);
     process.exit(1); 
