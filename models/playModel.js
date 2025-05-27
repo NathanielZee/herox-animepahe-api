@@ -25,26 +25,6 @@ class PlayModel {
         return this.scrapePlayPage(results);
     }
 
-    static async getDownloadLinks($) {
-        const downloadLinks = [];
-        
-        $('#pickDownload a').each((index, element) => {
-            const link = $(element).attr('href');
-            if (link) {
-                downloadLinks.push({
-                    url: link || null,
-                    quality: $(element).text().trim() || null,
-                });
-            }
-        });
-
-        if (downloadLinks.length === 0) {
-            throw new CustomError('No download links found', 404);
-        }
-
-        return downloadLinks;
-    }
-
     static async scrapeIframe(url) {
         const results = await Animepahe.getData("iframe", { url }, false);
         console.log("Iframe data:", results);
@@ -66,12 +46,55 @@ class PlayModel {
             url: source[0] || null,
             isM3U8: source[0].includes('.m3u8') || null,
         }];
-    }     
+    }
+
+        static async getDownloadLinks($) {
+        const downloadLinks = [];
+        
+        $('#pickDownload a').each((index, element) => {
+            const link = $(element).attr('href');
+            if (link) {
+                downloadLinks.push({
+                    url: link || null,
+                    resolution: $(element).text().trim() || null,
+                });
+            }
+        });
+
+        if (downloadLinks.length === 0) {
+            return [];
+        }
+
+        return downloadLinks;
+    }
+
+    static async getResolutions($) {
+        const resolutions = [];
+        
+        $('#resolutionMenu button').each((index, element) => {
+            const link = $(element).attr('data-src');
+            const resolution = $(element).attr('data-resolution');
+            const audio = $(element).attr('data-audio');
+            if (link) {
+                resolutions.push({
+                    url: link || null,
+                    resolution: resolution || null,
+                    audio: audio || null,
+                });
+            }
+        });
+
+        if (resolutions.length === 0) {
+            return []; 
+        }
+
+        return resolutions;
+    }
     
     static async scrapePlayPage(pageHtml) {
-        const [ session, provider, url ] = ['session', 'provider', 'url'].map(v => getJsVariable(pageHtml, v) || null);
+        const [ session, provider ] = ['session', 'provider'].map(v => getJsVariable(pageHtml, v) || null);
 
-        if (!session || !provider || !url) {
+        if (!session || !provider) {
             throw new CustomError('Episode not found', 404);
         }
 
@@ -92,16 +115,17 @@ class PlayModel {
             },
             session,
             provider,
-            url,
             episode: $('.episode-menu #episodeMenu').text().trim().replace(/\D/g, ''),
         };
 
         try {
-            playInfo.sources = await this.scrapeIframe(url);
+            playInfo.resolutions = await this.getResolutions($);
+            const [ url ] = playInfo.resolutions.map(res => res.url);
+            console.log(url);
+            // playInfo.sources = await this.scrapeIframe(url);
             playInfo.downloadLinks = await this.getDownloadLinks($);
         } catch (error) {
             console.error(error);
-            playInfo.m3u8 = null;
         }
 
         return playInfo;
