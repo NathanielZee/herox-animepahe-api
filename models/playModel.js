@@ -19,8 +19,6 @@ class PlayModel {
         if (results.data) {
             return DataProcessor.processApiData(results);
         }
-
-        console.log(results);
         
         return this.scrapePlayPage(results);
     }
@@ -43,7 +41,7 @@ class PlayModel {
 
         return [{
             url: source[0] || null,
-            isM3U8: source[0].includes('.m3u8') || null,
+            isM3U8: source[0].includes('.m3u8') || false,
         }];
     }
 
@@ -53,9 +51,13 @@ class PlayModel {
         $('#pickDownload a').each((index, element) => {
             const link = $(element).attr('href');
             if (link) {
+                const fullText = $(element).text().trim();
+                const match = fullText.match(/(?:\w+)\s*·\s*(\d+p)\s*\((\d+(?:\.\d+)?(?:MB|GB))\)/i);
+                
                 downloadLinks.push({
                     url: link || null,
-                    resolution: $(element).text().trim() || null,
+                    quality: match ? match[1] : fullText, 
+                    filesize: match ? match[2] : null,  
                 });
             }
         });
@@ -79,6 +81,7 @@ class PlayModel {
                     url: link || null,
                     resolution: resolution || null,
                     audio: audio || null,
+                    fanSub: $(element).attr('data-fansub') || null,
                 });
             }
         });
@@ -101,11 +104,11 @@ class PlayModel {
         
         const playInfo = {
             ids: {
-                animepahe_id: parseInt($('meta[name="id"]').attr('content')) || null,
-                mal_id: parseInt($('meta[name="anidb"]').attr('content')) || null,
-                anilist_id: parseInt($('meta[name="anilist"]').attr('content')) || null,
-                anime_planet_id: parseInt($('meta[name="anime-planet"]').attr('content')) || null,
-                ann_id: parseInt($('meta[name="ann"]').attr('content')) || null,
+                animepahe_id: parseInt($('meta[name="id"]').attr('content'), 10) || null,
+                mal_id: parseInt($('meta[name="anidb"]').attr('content'), 10) || null,
+                anilist_id: parseInt($('meta[name="anilist"]').attr('content'), 10) || null,
+                anime_planet_id: parseInt($('meta[name="anime-planet"]').attr('content'), 10) || null,
+                ann_id: parseInt($('meta[name="ann"]').attr('content'), 10) || null,
                 anilist: $('meta[name="anilist"]').attr('content') || null,
                 anime_planet: $('meta[name="anime-planet"]').attr('content') || null,
                 ann: $('meta[name="ann"]').attr('content') || null,
@@ -118,34 +121,53 @@ class PlayModel {
         };
 
         try {
-            playInfo.resolutions = await this.getResolutionList($);
-            const resolutionData = playInfo.resolutions.map(res => ({
+            const resolutions = await this.getResolutionList($);
+            const resolutionData = resolutions.map(res => ({
                 url: res.url,
                 resolution: res.resolution,
-                audio: res.audio
+                audio: res.audio,
+                fanSub: res.fanSub
             }));
             
-            console.log('Resolution data:', resolutionData);
-            playInfo.sources = [];
             
-            for (const data of resolutionData) {
-                console.log(`Scraping URL: ${data.url}`);
-                const sources = await this.scrapeIframe(data.url);
-                // Add resolution and audio info to each source
-                const sourcesWithResolution = sources.map(source => ({
-                    ...source,
-                    resolution: data.resolution,
-                    audio: data.audio
-                }));
-                playInfo.sources.push(...sourcesWithResolution);
-            }
+            const allSources = await this.processBatch(resolutionData);
+            playInfo.sources = allSources.flat();
 
             playInfo.downloadLinks = await this.getDownloadLinkList($);
         } catch (error) {
-            console.error(error);
+            console.error('Error in scrapePlayPage:', error);
+            throw new CustomError('Failed to scrape play page data', 500);
         }
 
         return playInfo;
+    }
+
+    static async processBatch(items, batchSize = 2, delayMs = 1000) {
+        const results = [];
+        
+        for (let i = 0; i < items.length; i += batchSize) {
+            const batch = items.slice(i, i + batchSize);
+            const batchPromises = batch.map(async (data) => {
+                console.log(`Scraping URL: ${data.url}`);
+                const sources = await this.scrapeIframe(data.url);
+                return sources.map(source => ({
+                    ...source,
+                    resolution: data.resolution,
+                    audio: data.audio,
+                    fanSub: data.fanSub
+                }));
+            });
+
+            const batchResults = await Promise.all(batchPromises);
+            results.push(...batchResults);
+
+            // delay between batches
+            if (i + batchSize < items.length) {
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+        
+        return results;
     }
 }
 
