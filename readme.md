@@ -38,27 +38,33 @@ copy .env.example .env  # On Windows
 
 ## Configuration
 
-While not compulsory cause it comes with default values already (except for adding proxies)..
-You can Create a `.env` file in the root directory that will override the default, possible variables are:
+The API comes with sensible defaults and works out of the box without any configuration. However, you can customize its behavior by creating a `.env` file in the root directory with the following options:
 
 ```env
 # Base configuration
-PORT=3000
+PORT=3000                   # The port the API server will run on
 BASE_URL=https://animepahe.com
 USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
-# Cookie configuration
-COOKIES=your_cookies_here    # Optional: Cookies for authenticated requests
+# Cookie configuration (Optional - see Cookie Management section below)
+COOKIES=your_cookies_here   # Only set this if you want to override automatic cookie management
 
-# Proxy configuration
-USE_PROXY=false             # Set to 'true' to enable proxy support
+# Proxy configuration (Optional - for enhanced reliability)
+USE_PROXY=false            # Set to 'true' to enable proxy support
 PROXIES=http://proxy1.com,http://proxy2.com    # Comma-separated list of proxy servers
 ```
 
-### Cookie Format
-The `COOKIES` variable should be in standard cookie header format:
+### Cookie Management
+
+The API includes automatic cookie management that handles everything for you. You typically **do not need to set cookies manually**. Here's how it works:
+
+1. The API automatically manages and refreshes cookies as needed
+2. Cookies are stored in `data/cookies.json` and updated automatically
+3. Manual cookie configuration via `COOKIES` env var is optional and only needed if you want to override the automatic management
+
+If you do need to set cookies manually (not recommended), use this format in your `.env` file:
 ```
-cookie1=value1; cookie2=value2
+COOKIES=cookie1=value1; cookie2=value2
 ```
 
 ### Proxy Format
@@ -196,3 +202,32 @@ This project is not affiliated with or endorsed by Animepahe. It's an unofficial
 ## Support
 
 If you find this project helpful, please give it a ⭐️ on GitHub!
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Service Unavailable (503)**
+   - This usually means the API is having trouble accessing Animepahe
+   - Solution: Wait a few minutes and try again, or enable proxy support if issues persist
+
+2. **Rate Limiting**
+   - The API includes built-in protection against rate limiting
+   - If you still get rate limited, try:
+     - Reducing your request frequency
+     - Enabling proxy support
+     - Waiting a few minutes before retrying
+
+3. **Cookie-Related Issues**
+   - By default, the API handles cookies automatically
+   - If you see cookie-related errors:
+     - Make sure the `data` directory exists and is writable
+     - Don't set the `COOKIES` env var unless absolutely necessary
+     - Try deleting `data/cookies.json` to let the API regenerate fresh cookies
+
+4. **Proxy Support**
+   - Only enable proxy support if you're experiencing consistent access issues
+   - When enabling proxies, make sure to provide valid proxy URLs
+   - Test your proxy URLs before adding them to the configuration
+
+For additional help, check the [Issues](https://github.com/ElijahCodes12345/animepahe-api/issues) section on GitHub.
