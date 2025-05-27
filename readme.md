@@ -44,7 +44,7 @@ The API comes with sensible defaults and works out of the box without any config
 # Base configuration
 PORT=3000                   # The port the API server will run on
 BASE_URL=https://animepahe.com
-USER_AGENT= # Not required, Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+USER_AGENT= # eg: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (but Not required)
 
 # Cookie configuration (Optional - see Cookie Management section below)
 COOKIES=your_cookies_here   # Only set this if you want to override automatic cookie management
