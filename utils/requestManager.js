@@ -145,6 +145,9 @@ class RequestManager {
             const response = await axios.get(url, {
                 params: params,
                 headers: {
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Referer': Config.getUrl('home'),
                     'User-Agent': Config.userAgent,
                     'Cookie': cookieHeader
                 },

@@ -86,7 +86,7 @@ class Animepahe {
                 throw new CustomError('Invalid user-provided cookies format', 400);
             }
         }
-        console.log('No user-provided cookies, checking Config...');
+        console.log('No user-provided cookies or is in an invalid format, checking Config...');
         if (Config.cookies && Config.cookies.trim()) {
             console.log('Using cookies from Config (.env file)');
             return Config.cookies.trim();

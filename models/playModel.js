@@ -19,17 +19,40 @@ class PlayModel {
         if (results.data) {
             return DataProcessor.processApiData(results);
         }
+
+        console.log(results);
         
         return this.scrapePlayPage(results);
     }
 
+    static async getDownloadLinks($) {
+        const downloadLinks = [];
+        
+        $('#pickDownload a').each((index, element) => {
+            const link = $(element).attr('href');
+            if (link) {
+                downloadLinks.push({
+                    url: link || null,
+                    quality: $(element).text().trim() || null,
+                });
+            }
+        });
+
+        if (downloadLinks.length === 0) {
+            throw new CustomError('No download links found', 404);
+        }
+
+        return downloadLinks;
+    }
+
     static async scrapeIframe(url) {
-        const data = await Animepahe.getData("iframe", { url }, false);
-        if (!data) {
+        const results = await Animepahe.getData("iframe", { url }, false);
+        console.log("Iframe data:", results);
+        if (!results) {
             throw new CustomError('Failed to fetch iframe data', 503);
         }
 
-        const execResult = /(eval)(\(f.*?)(\n<\/script>)/s.exec(data);
+        const execResult = /(eval)(\(f.*?)(\n<\/script>)/s.exec(results);
         if (!execResult) {
             throw new CustomError('Failed to extract source from iframe', 500);
         }
@@ -40,8 +63,8 @@ class PlayModel {
         }
 
         return [{
-            url: source[0],
-            isM3U8: source[0].includes('.m3u8'),
+            url: source[0] || null,
+            isM3U8: source[0].includes('.m3u8') || null,
         }];
     }     
     
@@ -74,8 +97,10 @@ class PlayModel {
         };
 
         try {
-            playInfo.m3u8 = await this.scrapeIframe(url);
+            playInfo.sources = await this.scrapeIframe(url);
+            playInfo.downloadLinks = await this.getDownloadLinks($);
         } catch (error) {
+            console.error(error);
             playInfo.m3u8 = null;
         }
 
