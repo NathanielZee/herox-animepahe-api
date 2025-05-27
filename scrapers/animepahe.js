@@ -88,7 +88,7 @@ class Animepahe {
         }
         console.log('No user-provided cookies or is in an invalid format, checking Config...');
         if (Config.cookies && Config.cookies.trim()) {
-            console.log('Using cookies from Config (.env file)');
+            console.log('Using cookies from Config');
             return Config.cookies.trim();
         }
 

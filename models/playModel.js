@@ -27,7 +27,6 @@ class PlayModel {
 
     static async scrapeIframe(url) {
         const results = await Animepahe.getData("iframe", { url }, false);
-        console.log("Iframe data:", results);
         if (!results) {
             throw new CustomError('Failed to fetch iframe data', 503);
         }
@@ -48,7 +47,7 @@ class PlayModel {
         }];
     }
 
-        static async getDownloadLinks($) {
+    static async getDownloadLinkList($) {
         const downloadLinks = [];
         
         $('#pickDownload a').each((index, element) => {
@@ -68,7 +67,7 @@ class PlayModel {
         return downloadLinks;
     }
 
-    static async getResolutions($) {
+    static async getResolutionList($) {
         const resolutions = [];
         
         $('#resolutionMenu button').each((index, element) => {
@@ -119,11 +118,29 @@ class PlayModel {
         };
 
         try {
-            playInfo.resolutions = await this.getResolutions($);
-            const [ url ] = playInfo.resolutions.map(res => res.url);
-            console.log(url);
-            // playInfo.sources = await this.scrapeIframe(url);
-            playInfo.downloadLinks = await this.getDownloadLinks($);
+            playInfo.resolutions = await this.getResolutionList($);
+            const resolutionData = playInfo.resolutions.map(res => ({
+                url: res.url,
+                resolution: res.resolution,
+                audio: res.audio
+            }));
+            
+            console.log('Resolution data:', resolutionData);
+            playInfo.sources = [];
+            
+            for (const data of resolutionData) {
+                console.log(`Scraping URL: ${data.url}`);
+                const sources = await this.scrapeIframe(data.url);
+                // Add resolution and audio info to each source
+                const sourcesWithResolution = sources.map(source => ({
+                    ...source,
+                    resolution: data.resolution,
+                    audio: data.audio
+                }));
+                playInfo.sources.push(...sourcesWithResolution);
+            }
+
+            playInfo.downloadLinks = await this.getDownloadLinkList($);
         } catch (error) {
             console.error(error);
         }
