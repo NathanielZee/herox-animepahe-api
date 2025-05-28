@@ -1,8 +1,7 @@
 {
-  "buildCommand": "npm install && npx playwright install chromium --with-deps",
   "functions": {
     "api/index.js": {
-      "memory": 1024,
+      "memory": 3008,
       "maxDuration": 30
     }
   },

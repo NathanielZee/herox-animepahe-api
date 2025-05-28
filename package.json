@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
+    "postinstall": "npx playwright install chromium --with-deps",
     "test": "node test.js",
     "dev": "nodemon app.js",
     "start": "node app.js"
