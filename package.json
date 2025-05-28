@@ -5,7 +5,9 @@
   "scripts": {
     "test": "node test.js",
     "dev": "nodemon app.js",
-    "start": "node app.js"
+    "start": "node app.js",
+    "postinstall": "npx playwright install chromium",
+    "vercel-build": "npm run postinstall"
   },
   "keywords": [],
   "author": "",

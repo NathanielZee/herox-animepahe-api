@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
+const { getBrowserConfig } = require('../config/browser');
 const RequestManager = require("../utils/requestManager");
 const { CustomError } = require('../middleware/errorHandler');
 
@@ -40,7 +41,7 @@ class Animepahe {
 
         let browser;
         try {
-            browser = await chromium.launch({ headless: true });
+            browser = await chromium.launch(getBrowserConfig());
         } catch (error) {
             if (error.message.includes("Executable doesn't exist")) {
                 throw new CustomError('Browser setup required. Please run: npx playwright install', 500);
