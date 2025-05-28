@@ -1,7 +1,7 @@
 const Config = require('./config');
 
 class DataProcessor {
-    static processApiData(apiData, type = 'airing') {
+    static processApiData(apiData, type = 'airing', include = true) {
         console.log(`Processing API data of type: ${type}`);
 
         const items = apiData.data || [];
@@ -12,8 +12,9 @@ class DataProcessor {
             console.error('Unexpected API response format:', JSON.stringify(apiData).substring(0, 200));
             throw new Error('Unexpected API response format');
         }
-        
-        const paginationInfo = this._extractPaginationInfo(apiData, type);
+
+        let paginationInfo;
+        include ? paginationInfo = this._extractPaginationInfo(apiData, type) : paginationInfo;
 
         const dataProcessors = {
             'airing': this._processAiringData,
@@ -31,7 +32,7 @@ class DataProcessor {
             console.log("Sample:", processedData[0]);
         }
         
-        return { paginationInfo, data: processedData };
+        return paginationInfo ? { paginationInfo, data: processedData } : { data: processedData };
     }
     
     static _extractPaginationInfo(apiData, type) {

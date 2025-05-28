@@ -27,7 +27,7 @@ class Config {
         try {
             if(typeof cookieHeader === 'string' && cookieHeader.includes('=')) {
                 this.cookies = cookieHeader;
-                console.log("Cookies successfully set");
+                console.log('\x1b[36m%s\x1b[0m', 'Cookies successfully set');
                 return true;
             } else {
                 console.warn("Warning: Invalid cookie format");

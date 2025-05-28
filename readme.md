@@ -19,21 +19,11 @@ An unofficial REST API for [Animepahe](https://animepahe.ru/) that provides acce
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/ElijahCodes12345/animepahe-api.git
-
-# Navigate to project directory
+git clone https://github.com/YourUsername/animepahe-api.git
 cd animepahe-api
-
-# Install dependencies
 npm install
-
-# Install Playwright browsers (required for scraping and cookies auto-refresh)
-npx playwright install
-
-# Create .env file from example
+npx playwright install ## Install Playwright browsers (required for scraping and cookies auto-refresh)
 copy .env.example .env  # On Windows
-# cp .env.example .env  # On Unix-based systems
 ```
 
 ## Configuration
@@ -43,7 +33,7 @@ The API comes with sensible defaults and works out of the box without any config
 ```env
 # Base configuration
 PORT=3000                   # The port the API server will run on
-BASE_URL=https://animepahe.com
+BASE_URL=https://animepahe.ru
 USER_AGENT= # eg: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (but Not required)
 
 # Cookie configuration (Optional - see Cookie Management section below)

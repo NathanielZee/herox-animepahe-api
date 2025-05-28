@@ -86,9 +86,9 @@ class Animepahe {
                 throw new CustomError('Invalid user-provided cookies format', 400);
             }
         }
-        console.log('No user-provided cookies or is in an invalid format, checking Config...');
+        console.log('checking Config for cookies...');
         if (Config.cookies && Config.cookies.trim()) {
-            console.log('Using cookies from Config');
+            console.log('Cookies found! Using cookies from Config');
             return Config.cookies.trim();
         }
 
@@ -184,7 +184,7 @@ class Animepahe {
         return this.fetchApiData('/api', { m: 'search', q: query, page }, userProvidedCookies = null);
     }
 
-    async fetchQueueData() {
+    async fetchQueueData(userProvidedCookies = null) {
         return this.fetchApiData('/api', { m: 'queue' }, userProvidedCookies = null);
     }
 
@@ -278,8 +278,6 @@ class Animepahe {
                 }
             } else {
                 switch (type) {
-                    case 'search':
-                        return await this.scrapeSearchData(params.query);
                     case 'animeList':
                         return await this.scrapeAnimeList(params.tag1, params.tag2);
                     case 'animeInfo':

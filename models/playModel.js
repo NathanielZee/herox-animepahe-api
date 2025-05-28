@@ -52,6 +52,8 @@ class PlayModel {
             const link = $(element).attr('href');
             if (link) {
                 const fullText = $(element).text().trim();
+                console.log(fullText)
+
                 const match = fullText.match(/(?:\w+)\s*·\s*(\d+p)\s*\((\d+(?:\.\d+)?(?:MB|GB))\)/i);
                 
                 downloadLinks.push({
