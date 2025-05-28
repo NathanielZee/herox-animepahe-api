@@ -1,11 +1,11 @@
 const express = require('express');
-const Config = require('./utils/config');
-const { errorHandler } = require('./middleware/errorHandler');
-const homeRoutes = require('./routes/homeRoutes');
-const queueRoutes = require('./routes/queueRoutes');
-const animeListRoutes = require('./routes/animeListRoutes');
-const animeInfoRoutes = require('./routes/animeInfoRoutes');
-const playRoutes = require('./routes/playRoutes');
+const Config = require('../utils/config');
+const { errorHandler } = require('../middleware/errorHandler');
+const homeRoutes = require('../routes/homeRoutes');
+const queueRoutes = require('../routes/queueRoutes');
+const animeListRoutes = require('../routes/animeListRoutes');
+const animeInfoRoutes = require('../routes/animeInfoRoutes');
+const playRoutes = require('../routes/playRoutes');
 
 const app = express();
 
