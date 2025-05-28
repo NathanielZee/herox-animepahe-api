@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npm install && npx playwright install chromium",
   "functions": {
     "api/index.js": {
       "memory": 1024,
