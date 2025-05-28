@@ -19,7 +19,7 @@ An unofficial REST API for [Animepahe](https://animepahe.ru/) that provides acce
 ## Installation
 
 ```bash
-git clone https://github.com/YourUsername/animepahe-api.git
+git clone https://github.com/ElijahCodes12345/animepahe-api.git
 cd animepahe-api
 npm install
 npx playwright install ## Install Playwright browsers (required for scraping and cookies auto-refresh)
