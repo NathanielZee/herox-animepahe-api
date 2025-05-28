@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "buildCommand": "npm install && npx playwright install chromium",
   "builds": [
     {
       "src": "app.js",
