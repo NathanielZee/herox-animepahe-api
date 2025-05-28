@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm install && npx playwright install chromium",
+  "buildCommand": "npm install && npx playwright install chromium --with-deps",
   "functions": {
     "api/index.js": {
       "memory": 1024,
