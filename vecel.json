@@ -1,22 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "npm install && npx playwright install chromium",
-  "builds": [
-    {
-      "src": "app.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "app.js"
-    }
-  ],
   "functions": {
     "app.js": {
       "memory": 1024,
-      "maxDuration": 10
+      "maxDuration": 30
     }
   }
 }
