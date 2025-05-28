@@ -131,9 +131,7 @@ class RequestManager {
             if (!cookieHeader) {
                 throw new CustomError('DDoS-Guard authentication required', 403);
             }
-
-            console.log("cookieHeader:", cookieHeader);
-
+            
             const proxyUrl = Config.proxyEnabled ? Config.getRandomProxy() : null;
             const [proxyHost, proxyPort] = proxyUrl ? proxyUrl.split(':') : [null, null];
 

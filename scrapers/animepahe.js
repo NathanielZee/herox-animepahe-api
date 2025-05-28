@@ -278,8 +278,6 @@ class Animepahe {
                 }
             } else {
                 switch (type) {
-                    case 'airing':
-                        return await this.scrapeAiringData(params.page || 1);
                     case 'search':
                         return await this.scrapeSearchData(params.query);
                     case 'animeList':

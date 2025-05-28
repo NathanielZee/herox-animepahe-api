@@ -14,7 +14,7 @@ const app = express();
 try {
     Config.validate();
     Config.loadFromEnv();
-    console.log('\x1b[36m%s\x1b[0m', 'Configuration set!.');
+    console.log('\x1b[36m%s\x1b[0m', 'Configuration set!.'); // Just wanted to try adding colors
 } catch (error) {
     console.error(error.message);
     process.exit(1); 
