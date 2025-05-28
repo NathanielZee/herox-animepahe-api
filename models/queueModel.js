@@ -15,7 +15,7 @@ class QueueModel {
             results.data = [];
         }
 
-        return DataProcessor.processApiData(results, "queue");
+        return DataProcessor.processApiData(results, "queue", false);
     }
 }
 

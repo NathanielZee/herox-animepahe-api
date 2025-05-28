@@ -52,14 +52,15 @@ class PlayModel {
             const link = $(element).attr('href');
             if (link) {
                 const fullText = $(element).text().trim();
-                console.log(fullText)
 
-                const match = fullText.match(/(?:\w+)\s*·\s*(\d+p)\s*\((\d+(?:\.\d+)?(?:MB|GB))\)/i);
+                const match = fullText.match(/(?:(\w+)\s*·\s*(\d+p)\s*\((\d+(?:\.\d+)?(?:MB|GB))\))(?:\s*(eng))?/i);
                 
                 downloadLinks.push({
                     url: link || null,
-                    quality: match ? match[1] : fullText, 
-                    filesize: match ? match[2] : null,  
+                    fansub: match ? match[1] : null,
+                    quality: match ? match[2] : fullText,
+                    filesize: match ? match[3] : null,
+                    isDub: match && match[4] ? true : false
                 });
             }
         });
@@ -82,7 +83,7 @@ class PlayModel {
                 resolutions.push({
                     url: link || null,
                     resolution: resolution || null,
-                    audio: audio || null,
+                    isDub: (audio && audio.toLowerCase() === 'eng') || false,
                     fanSub: $(element).attr('data-fansub') || null,
                 });
             }
@@ -127,10 +128,9 @@ class PlayModel {
             const resolutionData = resolutions.map(res => ({
                 url: res.url,
                 resolution: res.resolution,
-                audio: res.audio,
+                isDub: res.isDub,
                 fanSub: res.fanSub
             }));
-            
             
             const allSources = await this.processBatch(resolutionData);
             playInfo.sources = allSources.flat();
@@ -150,12 +150,11 @@ class PlayModel {
         for (let i = 0; i < items.length; i += batchSize) {
             const batch = items.slice(i, i + batchSize);
             const batchPromises = batch.map(async (data) => {
-                console.log(`Scraping URL: ${data.url}`);
                 const sources = await this.scrapeIframe(data.url);
                 return sources.map(source => ({
                     ...source,
                     resolution: data.resolution,
-                    audio: data.audio,
+                    isDub: data.isDub,
                     fanSub: data.fanSub
                 }));
             });
