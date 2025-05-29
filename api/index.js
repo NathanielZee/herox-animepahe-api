@@ -22,6 +22,7 @@ try {
 
 // Middleware to set hostUrl ONCE based on first incoming request
 app.use((req, res, next) => {
+    console.log(`Request: ${req.method} ${req.url}`);
     const protocol = req.protocol || 'https'; // Default to https on Vercel
     const host = req.headers.host;
     Config.setHostUrl(protocol, host);
