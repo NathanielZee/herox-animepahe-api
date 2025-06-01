@@ -1,5 +1,4 @@
 const PlayModel = require('../models/playModel');
-
 class PlayController {
     static async getStreamingLinks(req, res) {
         try {
