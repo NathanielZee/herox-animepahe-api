@@ -1,12 +1,20 @@
 const PlayModel = require('../models/playModel');
+const { CustomError } = require('../middleware/errorHandler');
+
 class PlayController {
-    static async getStreamingLinks(req, res) {
+    static async getStreamingLinks(req, res, next) {
         try {
-            const { episodeId } = req.params;
-            const links = await PlayModel.getStreamingLinks();
+            const { id } = req.params;
+            const { episodeId } = req.query;
+
+            if (!id || !episodeId) {
+                throw new CustomError('Both id and episodeId are required', 400);
+            }
+
+            const links = await PlayModel.getStreamingLinks(id, episodeId);
             res.json(links);
         } catch (error) {
-            res.status(500).json({ error: 'Failed to scrape play' });
+            next(error);
         }
     }
 }

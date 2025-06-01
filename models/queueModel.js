@@ -1,34 +1,21 @@
-const BaseScraper = require('../scrapers/baseScraper');
 const DataProcessor = require('../utils/dataProcessor');
 const Config = require('../utils/config');
-const ApiClient = require('../scrapers/apiClient');
+const Animepahe = require('../scrapers/animepahe');
+const { CustomError } = require('../middleware/errorHandler');
 
-class QueueModel extends BaseScraper {
+class QueueModel {
     static async getQueue() {
-        try {
-            const apiData = await ApiClient.getData("queue");
+        const results = await Animepahe.getData("queue");
 
-            console.log("API DATA", apiData);
-
-            if(apiData && typeof apiData === 'object' && !apiData.data) {
-                console.log("API data is empty, probably cause there's nothing to encode");
-
-                apiData.data = [];
-            }    
-            
-            if (apiData) {
-                apiData.data.map(item => item._id = animeId);
-                console.log('Successfully retrieved API data', apiData);
-                return DataProcessor.processApiData(apiData, "queue");
-            } else {
-                console.log('API data not in expected format, falling back to HTML scraping');
-                // return this.scrapeQueuePage();
-            }
-        } catch (error) {
-            console.log(error);
-            console.error('API scraping failed:', error.message);
-            console.log('Falling back to HTML scraping');
+        if (!results) {
+            throw new CustomError('Failed to fetch queue data', 503);
         }
+
+        if (typeof results === 'object' && !results.data) {
+            results.data = [];
+        }
+
+        return DataProcessor.processApiData(results, "queue", false);
     }
 }
 

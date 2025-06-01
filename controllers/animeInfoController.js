@@ -1,32 +1,46 @@
 const AnimeInfoModel = require('../models/animeInfoModel');
+const { CustomError } = require('../middleware/errorHandler');
 
 class AnimeInfoController {
-    static async getAnimeInfo(req, res) {
+    static async getAnimeInfo(req, res, next) {
         try {
             const animeId = req.params.id;
-            const animeInfo = await AnimeInfoModel.getAnimeInfo(animeId);
-            if(!animeInfo) {
-                throw new Error("No result returned from animeInfo");
+            
+            if (!animeId) {
+                throw new CustomError('Anime ID is required', 400);
             }
+
+            const animeInfo = await AnimeInfoModel.getAnimeInfo(animeId);
+            
+            if (!animeInfo) {
+                throw new CustomError('Anime not found', 404);
+            }
+
             res.json(animeInfo);
         } catch (error) {
-            console.error(error);
-            res.status(500).json({ error: 'Failed to scrape anime info' });
+            next(error);
         }
     }
-    static async getAnimeReleases(req, res) {
+    
+    static async getAnimeReleases(req, res, next) {
         try {
             const animeId = req.params.id;
             const sort = req.query.sort || 'episode_desc';
-            const page = req.query.page || 1; 
-            const animeReleases = await AnimeInfoModel.getAnimeReleases(animeId, sort, page);
-            if(!animeReleases) {
-                throw new Error("No result returned from animeReleases");
+            const page = req.query.page || 1;
+
+            if (!animeId) {
+                throw new CustomError('Anime ID is required', 400);
             }
+
+            const animeReleases = await AnimeInfoModel.getAnimeReleases(animeId, sort, page);
+            
+            if (!animeReleases) {
+                throw new CustomError('No releases found', 404);
+            }
+
             res.json(animeReleases);
         } catch (error) {
-            console.log(error);
-            res.status(500).json({ error: 'Failed to scrape anime releases' });
+            next(error);
         }
     }
 }

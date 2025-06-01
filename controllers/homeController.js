@@ -1,33 +1,40 @@
 const HomeModel = require('../models/homeModel');
+const { CustomError } = require('../middleware/errorHandler');
 
 class HomeController {
-    static async getAiringAnime(req, res) {
+    static async getAiringAnime(req, res, next) {
         try {
             const page = req.query.page || 1;
             const airingAnime = await HomeModel.getAiringAnime(page);
-            if(!airingAnime) {
-                throw new Error("No result returned from AiringAnime");
+            
+            if (!airingAnime) {
+                throw new CustomError('No airing anime found', 404);
             }
+            
             res.json(airingAnime);
         } catch (error) {
-            console.log(error);
-            res.status(500).json({ error: 'Failed to scrape homepage' });
+            next(error);
         }
     }
 
-    static async searchAnime(req, res) {
+    static async searchAnime(req, res, next) {
         try {
             const query = req.query.q;
-            // PAGE HAS NO EFFECT ATM, JUST THERE INCASE
             const page = req.query.page || 1;
-            const airingAnime = await HomeModel.searchAnime(query, page);
-            if(!airingAnime) {
-                throw new Error("No result returned from SearchAnime");
+            
+            if (!query) {
+                throw new CustomError('Search query is required', 400);
             }
-            res.json(airingAnime);
+
+            const searchResults = await HomeModel.searchAnime(query, page);
+            
+            if (!searchResults) {
+                throw new CustomError('No results found', 404);
+            }
+            
+            res.json(searchResults);
         } catch (error) {
-            console.log(error);
-            res.status(500).json({ error: 'Failed to scrape homepage' });
+            next(error);
         }
     }
 }
