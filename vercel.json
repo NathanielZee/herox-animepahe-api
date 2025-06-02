@@ -11,5 +11,6 @@
       "src": "/api/(.*)",
       "dest": "/api/index.js"
     }
-  ]
+  ],
+  "buildCommand": "npm install && npx playwright install chromium && npx playwright install-deps chromium"
 }
