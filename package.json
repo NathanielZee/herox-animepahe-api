@@ -3,20 +3,22 @@
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
-    "postinstall": "npx playwright install chromium",
+    "postinstall": "node node_modules/@sparticuz/chromium/install.js",
     "dev": "nodemon app.js",
-    "start": "node app.js"
+    "start": "node app.js",
+    "setup": "node node_modules/@sparticuz/chromium/install.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@sparticuz/chromium": "^133.0.0",
     "axios": "^1.8.3",
     "cheerio": "^1.0.0",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
-    "playwright": "^1.51.0"
+    "puppeteer-core": "^24.9.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

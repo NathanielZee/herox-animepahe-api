@@ -1,8 +1,8 @@
-const { chromium } = require('playwright');
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
-const { getBrowserConfig } = require('../config/browser');
 const RequestManager = require("../utils/requestManager");
 const { CustomError } = require('../middleware/errorHandler');
 
@@ -34,33 +34,37 @@ class Animepahe {
         } catch (error) {
             return true;
         }
-    }    
-
+    }        
+    
     async refreshCookies() {
        console.log('Refreshing cookies...');
 
-        let browser;
+        let browser;        
         try {
-            browser = await chromium.launch(getBrowserConfig());
+            const executablePath = await chromium.executablePath();
+            console.log('Chrome executable path:', executablePath);
+            
+            browser = await puppeteer.launch({
+                args: [...chromium.args, '--no-sandbox'],
+                defaultViewport: chromium.defaultViewport,
+                executablePath: executablePath,
+                headless: 'new',
+                ignoreHTTPSErrors: true
+            });
+            console.log('Browser launched successfully');
         } catch (error) {
-            if (error.message.includes("Executable doesn't exist")) {
-                throw new CustomError('Browser setup required. Please run: npx playwright install', 500);
-            }
-            throw new CustomError('Failed to launch browser', 500);
-        }
-
-        const context = await browser.newContext();
-        const page = await context.newPage();
+            console.error('Browser launch error:', error);
+            throw new CustomError(`Failed to launch browser: ${error.message}`, 500);
+        }const page = await browser.newPage();
 
         try {
             await page.goto(Config.getUrl('home'), { 
-                waitUntil: 'networkidle',
+                waitUntil: 'networkidle0',
                 timeout: 30000 
             });
             
             await page.waitForTimeout(5000);
-            
-            const cookies = await context.cookies();
+              const cookies = await page.cookies();
             const cookieData = {
                 timestamp: Date.now(),
                 cookies: cookies
@@ -121,24 +125,31 @@ class Animepahe {
             }
             throw new CustomError(error.message || 'Failed to fetch API data', error.response?.status || 503);
         }
-    }
-    
-    async scrapeApiData(endpoint, pageUrl, waitTime = 10000) {
+    }      async scrapeApiData(endpoint, pageUrl, waitTime = 10000) {
         let browser;
         try {
-            browser = await chromium.launch({ headless: true });
+            const executablePath = await chromium.executablePath();
+            console.log('Chrome executable path:', executablePath);
+            
+            browser = await puppeteer.launch({
+                args: [...chromium.args, '--no-sandbox'],
+                defaultViewport: chromium.defaultViewport,
+                executablePath: executablePath,
+                headless: 'new',
+                ignoreHTTPSErrors: true
+            });
+            console.log('Browser launched successfully');
         } catch (error) {
-            if (error.message.includes("Executable doesn't exist")) {
-                throw new CustomError('Browser setup required. Please run: npx playwright install', 500);
-            }
-            throw new CustomError('Failed to launch browser', 500);
+            console.error('Browser launch error:', error);
+            throw new CustomError(`Failed to launch browser: ${error.message}`, 500);
         }
 
         const context = await browser.newContext();
         const page = await context.newPage();
         let apiData = null;
         
-        try {
+        try {            
+            await page.setRequestInterception(true);
             page.on('response', async (response) => {
                 try {
                     const url = response.url();
@@ -148,8 +159,12 @@ class Animepahe {
                         apiData = await response.json();
                     }
                 } catch (error) {
-                    
+                    // Ignore response handling errors
                 }
+            });
+            
+            page.on('request', request => {
+                request.continue();
             });
 
             await page.goto(pageUrl, { 

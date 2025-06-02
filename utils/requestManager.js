@@ -1,4 +1,5 @@
-const { chromium } = require('playwright');
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 const cheerio = require('cheerio');
 const axios = require('axios');
 const Config = require('./config');
@@ -19,13 +20,12 @@ class RequestManager {
     static async scrapeWithPlaywright(url) {
         console.log('Fetching content from:', url);        
         const proxy = Config.proxyEnabled ? Config.getRandomProxy() : null;
-        console.log(`Using proxy: ${proxy || 'none'}`);
-
-        const browser = await chromium.launch({
-            headless: true,
-            proxy: proxy ? {
-                server: proxy,
-            } : undefined,
+        console.log(`Using proxy: ${proxy || 'none'}`);        const browser = await puppeteer.launch({
+            args: [...chromium.args, proxy ? `--proxy-server=${proxy}` : ''],
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
+            ignoreHTTPSErrors: true
         });
 
         try {
