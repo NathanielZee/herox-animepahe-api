@@ -50,4 +50,8 @@ app.use('/', playRoutes);
 // Error handling middleware
 app.use(errorHandler);
 
-module.exports = app;
+module.exports = app.handler = (req, res) => {
+    // Remove /api prefix since Vercel adds it
+    req.url = req.url.replace(/^\/api/, '');
+    return app(req, res);
+};
