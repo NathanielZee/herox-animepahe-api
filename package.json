@@ -5,8 +5,7 @@
   "scripts": {
     "postinstall": "node node_modules/@sparticuz/chromium/install.js",
     "dev": "nodemon app.js",
-    "start": "node app.js",
-    "setup": "node node_modules/@sparticuz/chromium/install.js"
+    "start": "node app.js"
   },
   "keywords": [],
   "author": "",
