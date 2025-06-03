@@ -27,19 +27,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// Debug middleware
-app._router.stack.forEach((middleware) => {
-  if (middleware.route) {
-    console.log(`Route: ${Object.keys(middleware.route.methods)} ${middleware.route.path}`);
-  } else if (middleware.name === 'router') {
-    middleware.handle.stack.forEach((handler) => {
-      if (handler.route) {
-        console.log(`Router Route: ${Object.keys(handler.route.methods)} ${handler.route.path}`);
-      }
-    });
-  }
-});
-
 // Mount routes WITHOUT /api prefix (since we're already in /api)
 app.use('/', homeRoutes);
 app.use('/', queueRoutes);
