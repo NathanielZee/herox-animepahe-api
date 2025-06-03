@@ -1,5 +1,5 @@
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');
+const { chromium } = require('playwright-core');
+const chromiumBinary = require('@sparticuz/chromium');
 const cheerio = require('cheerio');
 const axios = require('axios');
 const Config = require('./config');
@@ -15,40 +15,48 @@ class RequestManager {
             console.trace('Invalid fetch type specified. Please use "json", "heavy", or "default".');
             return null;
         }
-    }
-
-    static async scrapeWithPlaywright(url) {
+    }    static async scrapeWithPlaywright(url) {
         console.log('Fetching content from:', url);        
         const proxy = Config.proxyEnabled ? Config.getRandomProxy() : null;
-        console.log(`Using proxy: ${proxy || 'none'}`);        const browser = await puppeteer.launch({
-            args: [...chromium.args, proxy ? `--proxy-server=${proxy}` : ''],
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: chromium.headless,
-            ignoreHTTPSErrors: true
+        console.log(`Using proxy: ${proxy || 'none'}`);
+        
+        const browser = await chromium.launch({
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process',
+                '--disable-web-security'
+            ],
+            proxy: proxy ? { server: proxy } : undefined,
+            executablePath: await chromiumBinary.executablePath,
+            chromiumSandbox: false,
+            headless: true,
+            timeout: 25000
         });
 
-        try {
-            console.log('Creating new page..');
-            const page = await browser.newPage();
-
-            // Add stealth measures
-            await page.addInitScript(() => {
-                delete navigator.__proto__.webdriver;
-                Object.defineProperty(navigator, 'plugins', {
-                    get: () => [1, 2, 3],
-                });
-                Object.defineProperty(navigator, 'languages', {
-                    get: () => ['en-US', 'en'],
-                });
-                
-                // Add more stealth measures
-                const originalQuery = window.navigator.permissions.query;
-                window.navigator.permissions.query = (parameters) => (
-                    parameters.name === 'notifications' ?
-                        Promise.resolve({ state: Notification.permission }) :
-                        originalQuery(parameters)
-                );
+        try {            console.log('Creating new context and page...');
+            const context = await browser.newContext({
+                viewport: { width: 1280, height: 720 },
+                userAgent: Config.userAgent,
+                locale: 'en-US',
+                timezoneId: 'America/New_York',
+                deviceScaleFactor: 1,
+                hasTouch: false,
+                isMobile: false
+            });
+            
+            const page = await context.newPage();
+            
+            // Block unnecessary resources
+            await page.route('**/*', route => {
+                return ['image', 'stylesheet', 'font', 'media'].includes(route.request().resourceType())
+                    ? route.abort()
+                    : route.continue();
             });
 
             // Set realistic headers

@@ -1,14 +1,14 @@
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');
 const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
 const RequestManager = require("../utils/requestManager");
+const { launchBrowser } = require('../utils/browser');
 const { CustomError } = require('../middleware/errorHandler');
 
 class Animepahe {
     constructor() {
-        this.cookiesPath = path.join(__dirname, '../data/cookies.json');
+        // Use /tmp directory for Vercel
+        this.cookiesPath = path.join('/tmp', 'cookies.json');
         this.cookiesRefreshInterval = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
     }
 
@@ -37,47 +37,52 @@ class Animepahe {
     }        
     
     async refreshCookies() {
-       console.log('Refreshing cookies...');
+        console.log('Refreshing cookies...');
+        let browser;
 
-        let browser;        
         try {
-            const executablePath = await chromium.executablePath();
-            console.log('Chrome executable path:', executablePath);
-            
-            browser = await puppeteer.launch({
-                args: [...chromium.args, '--no-sandbox'],
-                defaultViewport: chromium.defaultViewport,
-                executablePath: executablePath,
-                headless: 'new',
-                ignoreHTTPSErrors: true
-            });
+            browser = await launchBrowser();
             console.log('Browser launched successfully');
         } catch (error) {
+            if (error.message.includes("Executable doesn't exist")) {
+                throw new CustomError('Browser setup required. Please run: npx playwright install', 500);
+            }
             console.error('Browser launch error:', error);
             throw new CustomError(`Failed to launch browser: ${error.message}`, 500);
-        }const page = await browser.newPage();
+        }
+
+        const context = await browser.newContext();
+        const page = await context.newPage(); 
 
         try {
-            await page.goto(Config.getUrl('home'), { 
-                waitUntil: 'networkidle0',
-                timeout: 30000 
+            await page.goto(Config.getUrl('home'), {
+                waitUntil: 'networkidle',
+                timeout: 30000,
             });
-            
+
             await page.waitForTimeout(5000);
-              const cookies = await page.cookies();
+
+            const cookies = await context.cookies();
+            if (!cookies || cookies.length === 0) {
+                throw new CustomError('No cookies found after page load', 503);
+            }
+
             const cookieData = {
                 timestamp: Date.now(),
-                cookies: cookies
+                cookies,
             };
-            
+
             await fs.mkdir(path.dirname(this.cookiesPath), { recursive: true });
             await fs.writeFile(this.cookiesPath, JSON.stringify(cookieData, null, 2));
 
             console.log('Cookies refreshed successfully');
         } catch (error) {
-            throw new CustomError('Failed to refresh cookies', 503);
+            console.error('Cookie refresh error:', error);
+            throw new CustomError(`Failed to refresh cookies: ${error.message}`, 503);
         } finally {
-            await browser?.close();
+            if (browser) {
+                await browser.close();
+            }
         }
     }
 
@@ -125,18 +130,29 @@ class Animepahe {
             }
             throw new CustomError(error.message || 'Failed to fetch API data', error.response?.status || 503);
         }
-    }      async scrapeApiData(endpoint, pageUrl, waitTime = 10000) {
+    }
+
+    async scrapeApiData(endpoint, pageUrl, waitTime = 10000) {
         let browser;
         try {
-            const executablePath = await chromium.executablePath();
+            const executablePath = await chromiumBinary.executablePath();
             console.log('Chrome executable path:', executablePath);
             
-            browser = await puppeteer.launch({
-                args: [...chromium.args, '--no-sandbox'],
-                defaultViewport: chromium.defaultViewport,
-                executablePath: executablePath,
-                headless: 'new',
-                ignoreHTTPSErrors: true
+            // Fixed: Use chromium instead of puppeteer and correct launch configuration
+            browser = await chromium.launch({
+                args: [
+                    ...chromiumBinary.args,
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--single-process',
+                    '--no-zygote',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor'
+                ],
+                executablePath,
+                headless: true,
             });
             console.log('Browser launched successfully');
         } catch (error) {
@@ -149,7 +165,7 @@ class Animepahe {
         let apiData = null;
         
         try {            
-            await page.setRequestInterception(true);
+            // Set up response interception
             page.on('response', async (response) => {
                 try {
                     const url = response.url();
@@ -160,11 +176,8 @@ class Animepahe {
                     }
                 } catch (error) {
                     // Ignore response handling errors
+                    console.log('Response handling error:', error.message);
                 }
-            });
-            
-            page.on('request', request => {
-                request.continue();
             });
 
             await page.goto(pageUrl, { 
@@ -173,7 +186,13 @@ class Animepahe {
             });
             
             await page.waitForTimeout(waitTime);
-            await page.waitForSelector('body', { timeout: 5000 });
+            
+            // Wait for body element to ensure page is loaded
+            try {
+                await page.waitForSelector('body', { timeout: 5000 });
+            } catch (e) {
+                console.log('Body selector timeout, continuing...');
+            }
 
             if (!apiData) {
                 throw new CustomError('No API data found', 404);
@@ -184,35 +203,36 @@ class Animepahe {
             if (error instanceof CustomError) throw error;
             throw new CustomError(error.message || 'Failed to scrape API data', 503);
         } finally {
-            await browser?.close();
+            if (browser) {
+                await browser.close();
+            }
         }
     }
 
-    // API Methods
+    // API Methods - Fixed parameter passing
     async fetchAiringData(page = 1, userProvidedCookies = null) {
-        return this.fetchApiData('/api', { m: 'airing', page }, userProvidedCookies = null);
+        return this.fetchApiData('/api', { m: 'airing', page }, userProvidedCookies);
     }
 
     async fetchSearchData(query, page, userProvidedCookies = null) {
         if (!query) {
             throw new CustomError('Search query is required', 400);
         }
-        return this.fetchApiData('/api', { m: 'search', q: query, page }, userProvidedCookies = null);
+        return this.fetchApiData('/api', { m: 'search', q: query, page }, userProvidedCookies);
     }
 
     async fetchQueueData(userProvidedCookies = null) {
-        return this.fetchApiData('/api', { m: 'queue' }, userProvidedCookies = null);
+        return this.fetchApiData('/api', { m: 'queue' }, userProvidedCookies);
     }
 
     async fetchAnimeRelease(id, sort, page, userProvidedCookies = null) {
         if (!id) {
             throw new CustomError('Anime ID is required', 400);
         }
-        return this.fetchApiData('/api', { m: 'release', id, sort, page }, userProvidedCookies = null);
+        return this.fetchApiData('/api', { m: 'release', id, sort, page }, userProvidedCookies);
     }
 
     // Scraping Methods
-
     async scrapeAnimeInfo(animeId) {
         if (!animeId) {
             throw new CustomError('Anime ID is required', 400);
@@ -242,7 +262,9 @@ class Animepahe {
         }
 
         return html;
-    }    async scrapePlayPage(id, episodeId) {
+    }
+
+    async scrapePlayPage(id, episodeId) {
         if (!id || !episodeId) {
             throw new CustomError('Both ID and episode ID are required', 400);
         }

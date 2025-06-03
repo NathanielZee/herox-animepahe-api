@@ -73,7 +73,7 @@ class DataProcessor {
             fansub: item.fansub || null,
             image: item.snapshot || null,
             disc: item.disc || null,
-            session: item.session || null,
+            session: item.anime_session || null,
             link: (item.session ? `${Config.getUrl('animeInfo', item.session)}` : '') || null,
             filler: item.filler || null,
             created_at: item.created_at || null,
