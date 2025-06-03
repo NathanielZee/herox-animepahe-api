@@ -24,6 +24,12 @@ npx playwright install
 copy .env.example .env
 ```
 
+## Deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FElijahCodes12345%2Fanimepahe-api)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/P0f7Rg?referralCode=alphaV)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ElijahCodes12345/animepahe-api)
+
 ## Configuration
 
 It works as it is but if you want you can create a `.env` file in the root directory:
