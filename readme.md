@@ -27,7 +27,8 @@ copy .env.example .env
 ## Deploy
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FElijahCodes12345%2Fanimepahe-api)
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/P0f7Rg?referralCode=alphaV)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ElijahCodes12345/animepahe-api)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/animepahe-api?referralCode=EgKNlg)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ElijahCodes12345/animepahe-api)
 
 ## Configuration
