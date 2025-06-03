@@ -9,7 +9,7 @@ class Animepahe {
     constructor() {
         // Use /tmp directory for Vercel
         this.cookiesPath = path.join('/tmp', 'cookies.json');
-        this.cookiesRefreshInterval = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+        this.cookiesRefreshInterval = 14 * 24 * 60 * 60 * 1000; // 14 days
     }
 
     async initialize() {
