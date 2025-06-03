@@ -55,7 +55,7 @@ GET /api/search?q=your_search_query&page=2
 ```
 GET /api/anime
 GET /api/anime?tab=A
-GET /api/:tag1/:tag2
+GET /api/anime/:tag1/:tag2
 ```
 
 ### Anime Information
