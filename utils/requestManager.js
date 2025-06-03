@@ -1,5 +1,4 @@
-const { chromium } = require('playwright-core');
-const chromiumBinary = require('@sparticuz/chromium');
+const { launchBrowser } = require('./browser');
 const cheerio = require('cheerio');
 const axios = require('axios');
 const Config = require('./config');
@@ -15,99 +14,79 @@ class RequestManager {
             console.trace('Invalid fetch type specified. Please use "json", "heavy", or "default".');
             return null;
         }
-    }    static async scrapeWithPlaywright(url) {
-        console.log('Fetching content from:', url);        
+    }
+
+    static async scrapeWithPlaywright(url) {
+        console.log('Fetching content from:', url);
         const proxy = Config.proxyEnabled ? Config.getRandomProxy() : null;
         console.log(`Using proxy: ${proxy || 'none'}`);
-        
-        const browser = await chromium.launch({
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--single-process',
-                '--disable-web-security'
-            ],
-            proxy: proxy ? { server: proxy } : undefined,
-            executablePath: await chromiumBinary.executablePath,
-            chromiumSandbox: false,
-            headless: true,
-            timeout: 25000
+
+        const browser = await launchBrowser();
+
+        try {
+        const contextOptions = {};
+
+        if (proxy) {
+            contextOptions.proxy = { server: proxy };
+        }
+
+        const context = await browser.newContext(contextOptions);
+        const page = await context.newPage();
+
+        // Stealth measures
+        await page.addInitScript(() => {
+            delete navigator.__proto__.webdriver;
+            Object.defineProperty(navigator, 'plugins', {
+            get: () => [1, 2, 3],
+            });
+            Object.defineProperty(navigator, 'languages', {
+            get: () => ['en-US', 'en'],
+            });
+
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) =>
+            parameters.name === 'notifications'
+                ? Promise.resolve({ state: Notification.permission })
+                : originalQuery(parameters);
         });
 
-        try {            console.log('Creating new context and page...');
-            const context = await browser.newContext({
-                viewport: { width: 1280, height: 720 },
-                userAgent: Config.userAgent,
-                locale: 'en-US',
-                timezoneId: 'America/New_York',
-                deviceScaleFactor: 1,
-                hasTouch: false,
-                isMobile: false
-            });
-            
-            const page = await context.newPage();
-            
-            // Block unnecessary resources
-            await page.route('**/*', route => {
-                return ['image', 'stylesheet', 'font', 'media'].includes(route.request().resourceType())
-                    ? route.abort()
-                    : route.continue();
-            });
+        // Realistic headers
+        await page.setExtraHTTPHeaders({
+            'User-Agent': Config.userAgent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.google.com/',
+            'Cache-Control': 'no-cache',
+        });
 
-            // Set realistic headers
-            await page.setExtraHTTPHeaders({
-                'User-Agent': Config.userAgent,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Referer': 'https://www.google.com/',
-                'Cache-Control': 'no-cache'
-            });
+        console.log('Navigating to URL...');
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
 
-            console.log('Navigating to url..');
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+        await page.waitForTimeout(10000); // DDoS challenge buffer
 
-            // Wait for DDoS protection to clear
-            await page.waitForTimeout(10000);
+        const isApiRequest = url.includes('/api') || url.endsWith('.json');
 
-            console.log('Waiting for content..');
-            
-            // Determine if we're looking for API or HTML content
-            const isApiRequest = url.includes('/api') || url.endsWith('.json');
-            
-            if (!isApiRequest) {
-                // For HTML content, wait for selectors
-                try {
-                    await page.waitForSelector('.episode-wrap, .episode-list', { 
-                        timeout: 60000 
-                    }).catch(e => {
-                        console.log('Specific selector not found, continuing anyway');
-                    });
-                } catch (error) {
-                    console.log('Waiting for content failed:', error.message);
-                }
-            } else {
-                // For API content, wait for body to contain JSON
-                try {
-                    await page.waitForFunction(() => {
-                        const text = document.body.textContent;
-                        return text.includes('{') && text.includes('}');
-                    }, { timeout: 60000 }).catch(e => {
-                        console.log('JSON content not found, continuing anyway');
-                    });
-                } catch (error) {
-                    console.log('Waiting for API content failed:', error.message);
-                }
+        if (!isApiRequest) {
+            try {
+            await page.waitForSelector('.episode-wrap, .episode-list', { timeout: 60000 });
+            } catch (e) {
+            console.log('Selector not found, continuing...');
             }
+        } else {
+            try {
+            await page.waitForFunction(() => {
+                const text = document.body.textContent;
+                return text.includes('{') && text.includes('}');
+            }, { timeout: 60000 });
+            } catch (e) {
+            console.log('API content not found, continuing...');
+            }
+        }
 
-            const content = await page.content();
-            return content;
+        const content = await page.content();
+        return content;
         } finally {
-            await browser.close();
+        await browser.close();
         }
     }
 
