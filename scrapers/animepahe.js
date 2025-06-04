@@ -222,9 +222,7 @@ class Animepahe {
         }
 
         return html;
-    }
-
-    async getData(type, params, preferFetch = true) {
+    }    async getData(type, params, preferFetch = true) {
         try {
             if (preferFetch) {
                 switch (type) {
@@ -253,6 +251,11 @@ class Animepahe {
             throw new CustomError(`Unsupported data type: ${type}`, 400);
         } catch (error) {
             if (error instanceof CustomError) throw error;
+
+            // If we have an HTTP error response, use its status code
+            if (error.response?.status) {
+                throw new CustomError(error.message || 'Request failed', error.response.status);
+            }
 
             // Try fallback if primary method fails
             if (preferFetch) {

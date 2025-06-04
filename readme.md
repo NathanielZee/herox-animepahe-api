@@ -64,6 +64,8 @@ GET /api/anime
 GET /api/anime?tab=A
 GET /api/anime/:tag1/:tag2
 ```
+tag1 being eg: genre, Theme, etc. tag2 being eg: action, adventure, historical etc.
+Note: For tab use 'hash' instead of '#'
 
 ### Anime Information
 ```
