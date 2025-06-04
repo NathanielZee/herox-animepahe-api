@@ -90,7 +90,7 @@ The API returns errors in this format:
 ```json
 {
   "status": 503,
-  "message": "Request failed with status code 404"
+  "message": "Request failed"
 }
 ```
 
