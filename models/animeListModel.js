@@ -37,7 +37,7 @@ class AnimeListModel {
         };
 
         if (typeof tab !== 'undefined') {
-            const targetId = tab === '#' ? 'hash' : tab.toUpperCase();
+            const targetId = tab === '#' || tab === 'hash' ? 'hash' : tab.toUpperCase();
             const $pane = $(`div.tab-pane#${targetId}`);
             
             if (!$pane.length) {
