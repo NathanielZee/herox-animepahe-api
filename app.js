@@ -6,6 +6,7 @@ const queueRoutes = require('./routes/queueRoutes');
 const animeListRoutes = require('./routes/animeListRoutes');
 const animeInfoRoutes = require('./routes/animeInfoRoutes');
 const playRoutes = require('./routes/playRoutes');
+const cache = require('./middleware/cache');
 
 const app = express();
 
@@ -28,16 +29,18 @@ app.use((req, res, next) => {
     next();
 });
 
-// Use Routes
 app.use('/api', homeRoutes);
-app.use('/api', queueRoutes);
-app.use('/api', animeListRoutes);
-app.use('/api', animeInfoRoutes);
-app.use('/api', playRoutes);
+app.use('/api', cache(120), queueRoutes);     // 2 minutes 
+app.use('/api', cache(300), animeListRoutes); // 5 minutes
+app.use('/api', cache(600), animeInfoRoutes); // 10 minutes
+app.use('/api', cache(180), playRoutes);      // 3 minutes
 
-// 404 handler - This should be after all routes
 app.use((req, res, next) => {
-    next(new CustomError('Route not found. Please check the API documentation at https://github.com/ElijahCodes12345/animepahe-api', 404));
+    if (!req.route) {
+        next(new CustomError('Route not found. Please check the API documentation at https://github.com/ElijahCodes12345/animepahe-api', 404));
+    } else {
+        next();
+    }
 });
 
 // Error handling middleware

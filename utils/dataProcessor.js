@@ -2,11 +2,8 @@ const Config = require('./config');
 
 class DataProcessor {
     static processApiData(apiData, type = 'airing', include = true) {
-        console.log(`Processing API data of type: ${type}`);
 
         const items = apiData.data || [];
-
-        console.log("items", items)
         
         if (!Array.isArray(items)) {
             console.error('Unexpected API response format:', JSON.stringify(apiData).substring(0, 200));
@@ -29,7 +26,7 @@ class DataProcessor {
         
         if (processedData.length > 0) {
             console.log(`Processed ${processedData.length} items of type: ${type}`);
-            console.log("Sample:", processedData[0]);
+            // console.log("Sample:", processedData[0]);
         }
         
         return paginationInfo ? { paginationInfo, data: processedData } : { data: processedData };
