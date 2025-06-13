@@ -1,6 +1,6 @@
 const express = require('express');
 const Config = require('../utils/config');
-const { errorHandler } = require('../middleware/errorHandler');
+const { errorHandler, CustomError } = require('../middleware/errorHandler');
 const homeRoutes = require('../routes/homeRoutes');
 const queueRoutes = require('../routes/queueRoutes');
 const animeListRoutes = require('../routes/animeListRoutes');
@@ -46,6 +46,10 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 module.exports = app.handler = (req, res) => {
-    req.url = req.url.replace(/^\/api/, '');
+    let path = req.url.replace(/^\/api/, '');
+    if (!path.startsWith('/')) {
+        path = '/' + path;
+    }
+    req.url = '/api' + path;
     return app(req, res);
 };
