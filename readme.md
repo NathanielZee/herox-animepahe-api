@@ -11,6 +11,7 @@ An unofficial REST API for [Animepahe](https://animepahe.ru/) that provides acce
 - 🎬 Get streaming links
 - 📱 Check encoding queue status
 - ⚡ Fast and reliable
+- 🐋 Redis support for improved performance
 - 🛡️ Built-in DDoS protection bypass
 - 🔄 Automatic cookie management
 
@@ -42,7 +43,21 @@ USER_AGENT=  # Optional
 COOKIES=     # Optional - for manual cookie management
 USE_PROXY=false
 PROXIES=     # Optional - comma-separated proxy URLs
+REDIS_URL=   # Optional - Redis connection URL for caching (e.g., redis://user:pass@host:port)
 ```
+
+### Redis Caching
+
+The API supports Redis caching to improve performance and reduce load on the Animepahe servers. When `REDIS_URL` is provided, responses will be cached with the following durations:
+
+- Queue status: 30 seconds
+- Anime list: 1 hour
+- Anime info: 1 day
+- Play/stream info: 5 hours
+
+You may edit these values as you see fit.
+
+If `REDIS_URL` is not provided, the API will still work
 
 ## API Endpoints
 
