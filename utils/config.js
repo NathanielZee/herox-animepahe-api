@@ -7,6 +7,7 @@ class Config {
         this.baseUrl = 'https://animepahe.ru'; 
         this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
         this.cookies = '';
+        this.cookiesRefreshInterval = 14 * 24 * 60 * 60 * 1000; // Default to 14 days if not set by user 
         this.proxies = [];
         this.proxyEnabled = false;
     }
@@ -97,6 +98,10 @@ class Config {
         
         if (process.env.HOST_URL) {
             this.hostUrl = process.env.HOST_URL;
+        }
+
+        if (process.env.cookiesRefreshInterval) {
+            this.cookiesRefreshInterval = process.env.cookiesRefreshInterval;
         }
 
         // Handle cookies

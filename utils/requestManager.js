@@ -112,7 +112,9 @@ class RequestManager {
             console.error('Failed to parse JSON:', error.message);
             throw new Error(`Failed to parse JSON from ${url}: ${error.message}`);
         }
-    }      static async fetchApiData(url, params = {}, cookieHeader) {
+    }      
+    
+    static async fetchApiData(url, params = {}, cookieHeader) {
         try {
             if (!cookieHeader) {
                 throw new CustomError('DDoS-Guard authentication required', 403);

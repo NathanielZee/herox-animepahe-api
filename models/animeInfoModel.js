@@ -30,7 +30,7 @@ class AnimeInfoModel {
             throw new CustomError('No release data available', 404);
         }
 
-        results.data.forEach(item => item._id = animeId);
+        results._id = animeId;
         return DataProcessor.processApiData(results, "releases");
     }
     
