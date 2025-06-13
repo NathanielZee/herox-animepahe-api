@@ -33,26 +33,30 @@ class DataProcessor {
     }
     
     static _extractPaginationInfo(apiData, type) {
-        const { 
+        const {
+            _id, 
             total, per_page, current_page, last_page, 
             next_page_url, prev_page_url, from, to 
         } = apiData;
-        
+
+        const urlPrefix = _id ? `${_id}/${type}?` : `${type}?`;
+
         return {
             ...(total != null && { total }),
             ...(per_page != null && { perPage: per_page }),
             ...(current_page != null && { currentPage: current_page }),
             ...(last_page != null && { lastPage: last_page }),
             ...(next_page_url != null && { 
-                nextPageUrl: next_page_url.replace(
+                    nextPageUrl:next_page_url.replace(
                     new RegExp(`^(${Config.baseUrl}|/)`),
                     Config.hostUrl
-                ).replace('api?', `api/${type}?`) 
+                ).replace('api?', urlPrefix)
             }),
             ...(prev_page_url != null && { prevPageUrl: prev_page_url.replace(
                     new RegExp(`^(${Config.baseUrl}|/)`),
                     Config.hostUrl
-                ).replace('api?', `api/${type}?`)  }),
+                ).replace('api?', urlPrefix)  
+            }),
             ...(from != null && { from }),
             ...(to != null && { to })
         };

@@ -1,9 +1,14 @@
-const redisClient = require('../utils/redis');
+const redis = require('../utils/redis');
 
 const cache = (duration) => async (req, res, next) => {
+    // caching will be skipped if Redis is disabled
+    if (!redis.enabled) {
+        return next();
+    }
+
     try {
         const key = req.originalUrl;
-        const cachedResponse = await redisClient.get(key);
+        const cachedResponse = await redis.get(key);
 
         if (cachedResponse) {
             return res.json(JSON.parse(cachedResponse));
@@ -11,18 +16,15 @@ const cache = (duration) => async (req, res, next) => {
 
         const originalJson = res.json;
         
-        // Override res.json method
         res.json = async function(data) {
-            // Store the response in Redis before sending
-            await redisClient.setEx(key, duration, JSON.stringify(data));
-            
-            // Call the original res.json with the data
+            await redis.setEx(key, duration, JSON.stringify(data));
             return originalJson.call(this, data);
         };
 
         next();
     } catch (error) {
-        next(error);
+        console.error('Cache error:', error);
+        next();
     }
 };
 

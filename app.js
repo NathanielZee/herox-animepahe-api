@@ -29,11 +29,11 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use('/api', homeRoutes);
-app.use('/api', cache(120), queueRoutes);     // 2 minutes 
-app.use('/api', cache(300), animeListRoutes); // 5 minutes
-app.use('/api', cache(600), animeInfoRoutes); // 10 minutes
-app.use('/api', cache(180), playRoutes);      // 3 minutes
+app.use('/api', homeRoutes); // caching done in homeRoutes
+app.use('/api', cache(30), queueRoutes); // 30 seconds
+app.use('/api', cache(18000), animeListRoutes); // 1 hour
+app.use('/api', cache(86400), animeInfoRoutes); // 1 day
+app.use('/api', cache(3600), playRoutes);  // 5 hours
 
 app.use((req, res, next) => {
     if (!req.route) {
