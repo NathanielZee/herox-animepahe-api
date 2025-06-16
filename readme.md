@@ -85,14 +85,24 @@ Note: For tab use 'hash' instead of '#'
 
 ### Anime Information
 ```
-GET /api/:id
-GET /api/:id/releases?sort=episode_desc&page=1
+GET /api/:session            # Get anime details using anime session ID
+GET /api/:session/releases?sort=episode_desc&page=1  # Get episode list
 ```
 
 ### Streaming
 ```
-GET /api/play/:id?episodeId=example
+GET /api/play/:session?episodeId=example  # Get streaming links
 ```
+
+> **Note:** In the API:
+> - `:session` in the URL path is the anime's unique identifier (e.g., '758e3b17-8f49-47d2-ac3f-5f70a5656241')
+> - `episodeId` as a query parameter is the episode's unique identifier, which matches the session value shown in individual episode entries from the /releases endpoint..
+> 
+> Example:
+> ```
+> /api/515dd441-386a-2ba3-6f79-e6e1e9c09802        # Get anime info
+> /api/play/515dd441-386a-2ba3-6f79-e6e1e9c09802?episodeId=a6399696d987035b4063a625d57266525fad3c3ee576a6606dba33ee8ac08367  # Get episode stream
+> ```
 
 ### Queue Status
 ```
