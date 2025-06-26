@@ -20,6 +20,8 @@ class DataProcessor {
             'queue': this._processQueueData,
         };
         
+        if (type === 'releases') items._parentId = apiData._id;
+
         const processor = dataProcessors[type] || this._processGenericData;
         
         const processedData = processor(items);
@@ -111,7 +113,7 @@ class DataProcessor {
             audio: item.audio || null,
             duration: item.duration || null,
             session: item.session || null,
-            link: (item.session ? `${Config.getUrl('play', item._id, item.session)}` : '') || null,
+            link: (item.session ? `${Config.getUrl('play', items._parentId, item.session)}` : '') || null,
             filler: item.filler || null,
             created_at: item.created_at || null
         }))
