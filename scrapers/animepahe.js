@@ -4,12 +4,14 @@ const Config = require('../utils/config');
 const RequestManager = require("../utils/requestManager");
 const { launchBrowser } = require('../utils/browser');
 const { CustomError } = require('../middleware/errorHandler');
+const os = require('os');
 
 class Animepahe {
     constructor() {
         // Use /tmp directory for Vercel
-        this.cookiesPath = path.join('/tmp', 'cookies.json');
+        this.cookiesPath = path.join(os.tmpdir(), 'cookies.json');
         this.cookiesRefreshInterval = 14 * 24 * 60 * 60 * 1000; // 14 days
+        this.isRefreshingCookies = false;
     }
 
     async initialize() {
@@ -102,19 +104,31 @@ class Animepahe {
             return Config.cookies.trim();
         }
 
-        await this.initialize();
-
+        // Try to read cookies from file
+        let cookieData;
         try {
-            const cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
-            const cookieHeader = cookieData.cookies
-                .map(cookie => `${cookie.name}=${cookie.value}`)
-                .join('; ');
-
-            Config.setCookies(cookieHeader);
-            return Config.cookies;
+            cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
         } catch (error) {
-            throw new CustomError('Failed to get cookies', 503);
+            // No cookies: must block and refresh
+            await this.refreshCookies();
+            cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
         }
+
+        // Check if cookies are stale
+        const ageInMs = Date.now() - cookieData.timestamp;
+        if (ageInMs > this.cookiesRefreshInterval && !this.isRefreshingCookies) {
+            this.isRefreshingCookies = true;
+            this.refreshCookies()
+                .catch(err => console.error('Background cookie refresh failed:', err))
+                .finally(() => { this.isRefreshingCookies = false; });
+        }
+
+        // Return current cookies (even if stale)
+        const cookieHeader = cookieData.cookies
+            .map(cookie => `${cookie.name}=${cookie.value}`)
+            .join('; ');
+        Config.setCookies(cookieHeader);
+        return Config.cookies;
     }
 
     async fetchApiData(endpoint, params = {}, userProvidedCookies = null) {
