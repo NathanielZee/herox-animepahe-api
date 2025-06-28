@@ -10,7 +10,7 @@ class QueueController {
                 throw new CustomError('Failed to fetch queue data', 404);
             }
 
-            res.json(queue);
+            return res.json(queue);
         } catch (error) {
             next(error);
         }

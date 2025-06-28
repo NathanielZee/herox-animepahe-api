@@ -11,7 +11,7 @@ class AnimeListController {
                 throw new CustomError('Failed to fetch anime list', 404);
             }
 
-            res.json(animeList);
+            return res.json(animeList);
         } catch (error) {
             next(error);
         }
@@ -32,7 +32,7 @@ class AnimeListController {
                 throw new CustomError('No anime found with these tags', 404);
             }
 
-            res.json(animeList);
+            return res.json(animeList);
         } catch (error) {
             next(error);
         }

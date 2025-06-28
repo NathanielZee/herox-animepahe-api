@@ -11,7 +11,7 @@ class HomeController {
                 throw new CustomError('No airing anime found', 404);
             }
             
-            res.json(airingAnime);
+            return res.json(airingAnime);
         } catch (error) {
             next(error);
         }
@@ -32,7 +32,7 @@ class HomeController {
                 throw new CustomError('No results found', 404);
             }
             
-            res.json(searchResults);
+            return res.json(searchResults);
         } catch (error) {
             next(error);
         }
