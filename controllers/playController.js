@@ -12,7 +12,7 @@ class PlayController {
             }
 
             const links = await PlayModel.getStreamingLinks(id, episodeId);
-            res.json(links);
+            return res.json(links);
         } catch (error) {
             next(error);
         }

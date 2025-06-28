@@ -16,7 +16,7 @@ class AnimeInfoController {
                 throw new CustomError('Anime not found', 404);
             }
 
-            res.json(animeInfo);
+            return res.json(animeInfo);
         } catch (error) {
             next(error);
         }
@@ -38,7 +38,7 @@ class AnimeInfoController {
                 throw new CustomError('No releases found', 404);
             }
 
-            res.json(animeReleases);
+            return res.json(animeReleases);
         } catch (error) {
             next(error);
         }
