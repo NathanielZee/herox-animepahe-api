@@ -4,7 +4,7 @@ services:
     env: node
     plan: free
     buildCommand: npm install && npx playwright install
-    startCommand: npm run dev
+    startCommand: node app.js
     envVars:
       - key: PORT
         value: "3000"
