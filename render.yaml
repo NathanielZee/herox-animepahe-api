@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: animepahe-api
+    env: node
+    plan: free
+    buildCommand: npm install && npx playwright install
+    startCommand: npm run dev
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: BASE_URL
+        value: "https://animepahe.ru"
+      - key: USER_AGENT
+        value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+      - key: COOKIES
+        value: ""  # Optional: If using cookies bypass
+      - key: USE_PROXY
+        value: "false"
+      - key: PROXIES
+        value: ""  # You can add proxy URLs here later
+      - key: REDIS_URL
+        value: "redis://default:xfEom9OeyftQbCxa3JB6fdGYYDn3rzWO@redis-17115.c57.us-east-1-4.ec2.redns.redis-cloud.com:17115"
