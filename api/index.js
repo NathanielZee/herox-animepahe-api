@@ -18,7 +18,7 @@ try {
     console.log('\x1b[36m%s\x1b[0m', 'Configuration loaded successfully');
 } catch (error) {
     console.error('Configuration error:', error.message);
-    // Don't exit in serverless - just log and continue
+    // Don't exit in serverless - just continue with defaults
     console.log('Continuing with default configuration...');
 }
 
@@ -60,6 +60,7 @@ app.get('/', (req, res) => {
     res.json({
         message: 'AnimepaheAPI is running',
         endpoints: [
+            'GET /health - Health check',
             'GET /api/health - Health check',
             'GET /api/airing - Get airing anime',
             'GET /api/search?q=query - Search anime',
