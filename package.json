@@ -1,15 +1,34 @@
 {
-  "name": "animepahe-api",
-  "version": "1.0.0",
+  "name": "herox-animepahe-api",
+  "version": "2.0.0",
+  "description": "A robust and reliable unofficial REST API for Animepahe with enhanced error handling and resilience",
   "main": "app.js",
   "scripts": {
     "dev": "nodemon app.js",
-    "start": "node app.js"
+    "start": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NathanielZee/herox-animepahe-api.git"
+  },
+  "keywords": [
+    "anime",
+    "api",
+    "animepahe",
+    "streaming",
+    "scraper",
+    "nodejs",
+    "express",
+    "reliable",
+    "robust"
+  ],
+  "author": "NathanielZee",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/NathanielZee/herox-animepahe-api/issues"
+  },
+  "homepage": "https://github.com/NathanielZee/herox-animepahe-api#readme",
   "dependencies": {
     "@sparticuz/chromium": "^133.0.0",
     "axios": "^1.8.3",
@@ -22,5 +41,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

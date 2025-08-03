@@ -1,142 +1,214 @@
-# AnimepaheAPI
+# HeroX AnimepaheAPI
 
-An unofficial REST API for [Animepahe](https://animepahe.ru/) that provides access to anime information, episodes, and streaming links.
+A **robust and reliable** unofficial REST API for [Animepahe](https://animepahe.ru/) with enhanced error handling, automatic retries, and fault tolerance.
 
-## Features
+## 🚀 Features
 
+- 🎯 **Reliable**: Built-in retry mechanisms and error handling
+- 🔄 **Fault Tolerant**: Works even when Redis or external services fail
+- 🛡️ **DDoS Protection Bypass**: Advanced browser automation with stealth features
+- ⚡ **Fast & Cached**: Redis caching with graceful fallback
+- 🔍 **Complete API**: Search, browse, stream links, and more
+- 📱 **Production Ready**: Optimized for serverless deployment
+- 🎬 **Anti-Bot Bypass**: Handles modern protection systems
+
+### Core Endpoints
 - 🎯 Get currently airing anime
-- 🔍 Search for specific anime
-- 📋 Browse complete anime list
-- 📺 Get anime details and episodes
-- 🎬 Get streaming links
-- 📱 Check encoding queue status
-- ⚡ Fast and reliable
-- 🐋 Redis support for improved performance
-- 🛡️ Built-in DDoS protection bypass
-- 🔄 Automatic cookie management
+- 🔍 Search for specific anime  
+- 📋 Browse complete anime catalog
+- 📺 Get detailed anime information
+- 🎬 Get streaming links for episodes
+- 📊 Check encoding queue status
 
-## Installation
+## 🛠️ Installation
 
 ```bash
-git clone https://github.com/ElijahCodes12345/animepahe-api.git
-cd animepahe-api
+git clone https://github.com/NathanielZee/herox-animepahe-api.git
+cd herox-animepahe-api
 npm install
 npx playwright install
-copy .env.example .env
+cp .env.example .env
 ```
 
-## Deploy
+## 🚀 Quick Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FElijahCodes12345%2Fanimepahe-api)
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ElijahCodes12345/animepahe-api)
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/animepahe-api?referralCode=EgKNlg)
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ElijahCodes12345/animepahe-api)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FNathanielZee%2Fherox-animepahe-api)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/NathanielZee/herox-animepahe-api)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/herox-animepahe-api?referralCode=heroX)
 
-## Configuration
+## ⚙️ Configuration
 
-It works as it is but if you want you can create a `.env` file in the root directory:
+Create a `.env` file (optional - works without configuration):
 
 ```env
-PORT=3000 # Optional
-BASE_URL=https://animepahe.ru # Optional
-USER_AGENT=  # Optional
-COOKIES=     # Optional - for manual cookie management
+# Server
+PORT=3000
+
+# Base Configuration  
+BASE_URL=https://animepahe.ru
+USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+
+# Optional: Manual Cookie Management
+COOKIES=
+
+# Optional: Proxy Support
 USE_PROXY=false
-PROXIES=     # Optional - comma-separated proxy URLs
-REDIS_URL=   # Optional - Redis connection URL for caching (e.g., redis://user:pass@host:port)
+PROXIES=http://user:pass@proxy1.com:8080,http://proxy2.com:8080
+
+# Optional: Redis Caching (improves performance)
+REDIS_URL=redis://user:pass@host:port
 ```
 
-### Redis Caching
+### 🔧 Redis Caching
 
-The API supports Redis caching to improve performance and reduce load on the Animepahe servers. When `REDIS_URL` is provided, responses will be cached with the following durations:
+The API supports Redis for improved performance:
 
+- **With Redis**: Faster responses, reduced server load
+- **Without Redis**: Still works perfectly, just slower
+- **Redis Fails**: API continues normally with direct fetching
+
+Cache durations:
 - Queue status: 30 seconds
-- Anime list: 1 hour
+- Anime lists: 1 hour  
 - Anime info: 1 day
-- Play/stream info: 5 hours
+- Streaming links: 30 minutes
 
-You may edit these values as you see fit.
+## 📚 API Documentation
 
-If `REDIS_URL` is not provided, the API will still work
-
-## API Endpoints
+### Health Check
+```http
+GET /health
+```
 
 ### Airing Anime
-```
+```http
 GET /api/airing
 GET /api/airing?page=2
 ```
 
-### Search Anime
-```
-GET /api/search?q=your_search_query
-GET /api/search?q=your_search_query&page=2
+### Search
+```http
+GET /api/search?q=one+piece
+GET /api/search?q=naruto&page=2
 ```
 
-### Anime List
-```
+### Browse Anime
+```http
 GET /api/anime
 GET /api/anime?tab=A
-GET /api/anime/:tag1/:tag2
-GET /api/anime/:tag1/:tag2?tab=D
-```
-tag1 being eg: genre, Theme, etc. tag2 being eg: action, adventure, historical etc.
-Note: For tab use 'hash' instead of '#'
-
-### Anime Information
-```
-GET /api/:session            # Get anime details using anime session ID
-GET /api/:session/releases?sort=episode_desc&page=1  # Get episode list
+GET /api/anime/genre/action
+GET /api/anime/genre/action?tab=B
 ```
 
-### Streaming
-```
-GET /api/play/:session?episodeId=example  # Get streaming links
+### Anime Details
+```http
+GET /api/:session
+GET /api/:session/releases?sort=episode_desc&page=1
 ```
 
-> **Note:** In the API:
-> - `:session` in the URL path is the anime's unique identifier (e.g., '758e3b17-8f49-47d2-ac3f-5f70a5656241')
-> - `episodeId` as a query parameter is the episode's unique identifier, which matches the session value shown in individual episode entries from the /releases endpoint..
-> 
-> Example:
-> ```
-> /api/515dd441-386a-2ba3-6f79-e6e1e9c09802        # Get anime info
-> /api/play/515dd441-386a-2ba3-6f79-e6e1e9c09802?episodeId=a6399696d987035b4063a625d57266525fad3c3ee576a6606dba33ee8ac08367  # Get episode stream
-> ```
+### Streaming Links
+```http
+GET /api/play/:session?episodeId=example_episode_id
+```
 
 ### Queue Status
-```
+```http
 GET /api/queue
 ```
 
-## Error Handling
+## 🔧 Advanced Features
 
-The API returns errors in this format:
+### Error Handling
+- Automatic retries with exponential backoff
+- Graceful degradation when services fail
+- Comprehensive error responses with status codes
 
+### Performance
+- Connection pooling for HTTP requests
+- Browser instance management
+- Memory leak prevention
+- Timeout handling
+
+### Reliability
+- Works offline (without Redis)
+- Handles network interruptions  
+- Anti-bot protection bypass
+- Resource cleanup and graceful shutdown
+
+## 📊 Response Format
+
+### Success Response
 ```json
 {
-  "status": 503,
-  "message": "Request failed"
+  "paginationInfo": {
+    "total": 1000,
+    "perPage": 8,
+    "currentPage": 1,
+    "lastPage": 125
+  },
+  "data": [...]
 }
 ```
 
-## Technologies Used
+### Error Response
+```json
+{
+  "status": 404,
+  "message": "Anime not found"
+}
+```
 
-- Node.js
-- Express
-- Playwright
-- @sparticuz/chromium
-- Cheerio
-- Axios
+## 🧪 Testing
 
-## License
+```bash
+# Start development server
+npm run dev
 
-This project is licensed under the MIT License.
+# Test health endpoint
+curl http://localhost:3000/health
 
-## Disclaimer
+# Test search
+curl "http://localhost:3000/api/search?q=one+piece"
+```
 
-This project is not affiliated with or endorsed by Animepahe. It's an unofficial API created for educational purposes.
+## 🏗️ Tech Stack
 
-## Support
+- **Runtime**: Node.js 18+
+- **Framework**: Express.js
+- **Browser**: Playwright + Chromium
+- **Parsing**: Cheerio
+- **HTTP**: Axios with retry logic
+- **Cache**: Redis (optional)
+- **Deploy**: Vercel, Heroku, Railway
 
-If you find this project helpful, please give it a ⭐️ on GitHub!
+## 🔒 Rate Limiting & Fair Use
+
+- Automatic retry delays prevent server overload
+- Built-in timeouts prevent resource exhaustion
+- Respectful scraping with proper delays
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## ⚠️ Disclaimer
+
+This is an unofficial API created for educational purposes. Not affiliated with or endorsed by Animepahe.
+
+## 🆘 Support
+
+- 🐛 [Report Issues](https://github.com/NathanielZee/herox-animepahe-api/issues)
+- 💬 [Discussions](https://github.com/NathanielZee/herox-animepahe-api/discussions)
+- ⭐ Star this repo if it helps you!
+
+---
+
+**Made with ❤️ by NathanielZee**

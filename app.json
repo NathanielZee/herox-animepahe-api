@@ -1,9 +1,9 @@
 {
-  "name": "AnimepaheAPI",
-  "description": "An unofficial REST API for Animepahe that provides access to anime information, episodes, and streaming links.",
-  "repository": "https://github.com/ElijahCodes12345/animepahe-api",
+  "name": "HeroX AnimepaheAPI",
+  "description": "A robust and reliable unofficial REST API for Animepahe with enhanced error handling, automatic retries, and fault tolerance.",
+  "repository": "https://github.com/NathanielZee/herox-animepahe-api",
   "logo": "https://animepahe.ru/apple-touch-icon.png",
-  "keywords": ["node", "express", "anime", "api"],
+  "keywords": ["node", "express", "anime", "api", "reliable", "robust", "animepahe"],
   "env": {
     "PORT": {
       "description": "Port number for the server (default: 3000)",
@@ -18,7 +18,7 @@
       "required": false
     },
     "COOKIES": {
-      "description": "Manual cookie management",
+      "description": "Manual cookie management (optional)",
       "required": false
     },
     "USE_PROXY": {
@@ -26,13 +26,29 @@
       "required": false
     },
     "PROXIES": {
-      "description": "Comma-separated proxy URLs",
+      "description": "Comma-separated proxy URLs (optional)",
+      "required": false
+    },
+    "REDIS_URL": {
+      "description": "Redis connection URL for caching (optional but recommended)",
       "required": false
     }
   },
   "buildpacks": [
     {
       "url": "heroku/nodejs"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-redis:mini",
+      "as": "REDIS"
     }
   ]
 }
