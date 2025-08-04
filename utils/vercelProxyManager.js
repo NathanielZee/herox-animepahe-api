@@ -1,4 +1,4 @@
-// utils/vercelProxyManager.js - Enhanced diagnostics version
+// utils/vercelProxyManager.js - Enhanced with stealth proxy support
 const axios = require('axios');
 const { CustomError } = require('../middleware/errorHandler');
 
@@ -18,57 +18,93 @@ class VercelProxyManager {
         };
     }
 
-    async fetchWithScrapingBee(url) {
+    async fetchWithScrapingBee(url, mode = 'basic') {
         if (!this.services.scrapingbee.enabled) {
             throw new Error('ScrapingBee API key not configured');
         }
 
-        console.log('🐝 Using ScrapingBee for:', url);
+        console.log(`🐝 Using ScrapingBee in ${mode} mode for:`, url);
         console.log('🐝 API Key (first 10 chars):', this.services.scrapingbee.key.substring(0, 10) + '...');
         
-        // Simplified parameters for initial test
-        const params = {
+        let params = {
             api_key: this.services.scrapingbee.key,
-            url: url,
-            render_js: 'false',     // Disable JS rendering for initial test
-            premium_proxy: 'false', // Disable premium proxy for initial test
+            url: encodeURIComponent(url), // Properly encode URL
             country_code: 'us'
         };
+
+        // Configure parameters based on mode
+        switch (mode) {
+            case 'stealth':
+                console.log('🥷 Using STEALTH mode - 75 credits per request');
+                params = {
+                    ...params,
+                    stealth_proxy: 'true',      // Enable stealth proxy
+                    render_js: 'true',          // Required for stealth
+                    wait: '3000',              // Wait 3 seconds for JS
+                    block_resources: 'false',   // Don't block resources
+                    premium_proxy: 'true'       // Also enable premium
+                };
+                break;
+                
+            case 'premium':
+                console.log('💎 Using PREMIUM mode - 25 credits per request');
+                params = {
+                    ...params,
+                    premium_proxy: 'true',      // Enable premium proxy
+                    render_js: 'true',          // Enable JS rendering
+                    wait: '2000',              // Wait 2 seconds
+                    block_resources: 'false'    // Don't block resources
+                };
+                break;
+                
+            case 'basic':
+            default:
+                console.log('🔰 Using BASIC mode - 1 credit per request');
+                params = {
+                    ...params,
+                    render_js: 'false',         // No JS for basic mode
+                    premium_proxy: 'false',     // No premium for basic
+                    block_resources: 'true'     // Block resources to save time
+                };
+                break;
+        }
 
         console.log('🐝 Request params:', { ...params, api_key: 'HIDDEN' });
 
         try {
             const response = await axios.get(this.services.scrapingbee.baseUrl, {
                 params,
-                timeout: 30000,
+                timeout: mode === 'stealth' ? 60000 : 30000, // Longer timeout for stealth
                 headers: {
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
                 }
             });
 
             console.log('🐝 ScrapingBee response status:', response.status);
-            console.log('🐝 Response headers:', JSON.stringify(response.headers, null, 2));
+            console.log('🐝 ScrapingBee response headers:', JSON.stringify(response.headers, null, 2));
             
-            if (response.data && response.data.length > 500) {
+            if (response.data && response.data.length > 100) {
                 const isDDoSBlocked = response.data.includes('DDoS-Guard') || 
-                                     response.data.includes('checking your browser');
+                                     response.data.includes('checking your browser') ||
+                                     response.data.includes('ddos-guard');
                 
                 console.log('🐝 Response length:', response.data.length);
                 console.log('🐝 Contains DDoS-Guard:', isDDoSBlocked);
-                console.log('🐝 Response preview:', response.data.substring(0, 200));
+                console.log('🐝 Response preview:', response.data.substring(0, 300));
                 
                 if (!isDDoSBlocked) {
-                    console.log('✅ ScrapingBee bypass successful');
+                    console.log(`✅ ScrapingBee ${mode} mode bypass successful`);
                     return response.data;
                 } else {
-                    throw new Error('Still blocked by DDoS-Guard');
+                    console.log(`❌ ScrapingBee ${mode} mode still blocked by DDoS-Guard`);
+                    throw new Error(`Still blocked by DDoS-Guard in ${mode} mode`);
                 }
             } else {
                 throw new Error('Response too short or empty');
             }
             
         } catch (error) {
-            console.error('❌ ScrapingBee detailed error:', {
+            console.error(`❌ ScrapingBee ${mode} mode detailed error:`, {
                 message: error.message,
                 status: error.response?.status,
                 statusText: error.response?.statusText,
@@ -87,13 +123,14 @@ class VercelProxyManager {
         console.log('🔧 Using ScraperAPI for:', url);
         console.log('🔧 API Key (first 10 chars):', this.services.scraperapi.key.substring(0, 10) + '...');
         
-        // Simplified parameters for initial test
+        // Enhanced parameters for difficult sites
         const params = {
             api_key: this.services.scraperapi.key,
-            url: url,
-            render: 'false',        // Disable JS rendering for initial test
-            premium: 'false',       // Disable premium for initial test
-            country_code: 'us'
+            url: encodeURIComponent(url), // Properly encode URL
+            render: 'true',           // Enable JS rendering
+            premium: 'true',          // Use premium proxies
+            country_code: 'us',
+            session_number: Math.floor(Math.random() * 1000) // Random session
         };
 
         console.log('🔧 Request params:', { ...params, api_key: 'HIDDEN' });
@@ -101,18 +138,22 @@ class VercelProxyManager {
         try {
             const response = await axios.get(this.services.scraperapi.baseUrl, {
                 params,
-                timeout: 30000
+                timeout: 45000, // Longer timeout for JS rendering
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                }
             });
 
             console.log('🔧 ScraperAPI response status:', response.status);
             console.log('🔧 Response headers:', JSON.stringify(response.headers, null, 2));
 
-            if (response.data && response.data.length > 500) {
-                const isDDoSBlocked = response.data.includes('DDoS-Guard');
+            if (response.data && response.data.length > 100) {
+                const isDDoSBlocked = response.data.includes('DDoS-Guard') ||
+                                     response.data.includes('checking your browser');
                 
                 console.log('🔧 Response length:', response.data.length);
                 console.log('🔧 Contains DDoS-Guard:', isDDoSBlocked);
-                console.log('🔧 Response preview:', response.data.substring(0, 200));
+                console.log('🔧 Response preview:', response.data.substring(0, 300));
                 
                 if (!isDDoSBlocked) {
                     console.log('✅ ScraperAPI bypass successful');
@@ -192,46 +233,82 @@ class VercelProxyManager {
 
     async fetch(url, cookieHeader = '', retries = 1) {
         const errors = [];
+        const isAnimePahe = url.includes('animepahe');
+        
+        console.log(`🔍 Starting fetch for ${isAnimePahe ? 'AnimePahe' : 'other site'}: ${url}`);
         
         // First test API keys
         console.log('🔍 Testing API keys before attempting requests...');
         const keyTests = await this.testApiKeys();
         
-        const servicesToTry = [
-            { name: 'ScrapingBee', method: () => this.fetchWithScrapingBee(url), test: keyTests.scrapingbee },
-            { name: 'ScraperAPI', method: () => this.fetchWithScraperAPI(url), test: keyTests.scraperapi }
-        ].filter(service => {
-            const serviceName = service.name.toLowerCase().replace(/[^a-z]/g, '');
-            const isEnabled = this.services[serviceName]?.enabled;
-            const keyWorks = service.test.working;
-            
-            if (isEnabled && !keyWorks) {
-                errors.push(`${service.name}: API key invalid - ${service.test.error}`);
+        // Define service attempts with escalating power for AnimePahe
+        let servicesToTry = [];
+        
+        if (isAnimePahe) {
+            console.log('🎯 AnimePahe detected - using escalating strategy');
+            // For AnimePahe, try stealth mode first, then premium, then basic
+            if (this.services.scrapingbee.enabled && keyTests.scrapingbee.working) {
+                servicesToTry.push(
+                    { name: 'ScrapingBee Stealth', method: () => this.fetchWithScrapingBee(url, 'stealth') },
+                    { name: 'ScrapingBee Premium', method: () => this.fetchWithScrapingBee(url, 'premium') }
+                );
             }
-            
-            return isEnabled && keyWorks;
-        });
+            if (this.services.scraperapi.enabled && keyTests.scraperapi.working) {
+                servicesToTry.push(
+                    { name: 'ScraperAPI Premium', method: () => this.fetchWithScraperAPI(url) }
+                );
+            }
+        } else {
+            console.log('🌐 Regular site - using basic strategy');
+            // For other sites, try basic mode first
+            if (this.services.scrapingbee.enabled && keyTests.scrapingbee.working) {
+                servicesToTry.push(
+                    { name: 'ScrapingBee Basic', method: () => this.fetchWithScrapingBee(url, 'basic') }
+                );
+            }
+            if (this.services.scraperapi.enabled && keyTests.scraperapi.working) {
+                servicesToTry.push(
+                    { name: 'ScraperAPI Basic', method: () => this.fetchWithScraperAPI(url) }
+                );
+            }
+        }
 
         if (servicesToTry.length === 0) {
+            const keyErrors = [];
+            if (!keyTests.scrapingbee.working && this.services.scrapingbee.enabled) {
+                keyErrors.push(`ScrapingBee: ${keyTests.scrapingbee.error}`);
+            }
+            if (!keyTests.scraperapi.working && this.services.scraperapi.enabled) {
+                keyErrors.push(`ScraperAPI: ${keyTests.scraperapi.error}`);
+            }
+            
             throw new CustomError(
-                `No working proxy services available. Errors: ${errors.join('; ')}`,
+                `No working proxy services available. Errors: ${keyErrors.join('; ')}`,
                 503
             );
         }
 
+        // Try each service in order
         for (const service of servicesToTry) {
             try {
-                console.log(`🔄 Trying ${service.name} with working API key...`);
+                console.log(`🔄 Trying ${service.name}...`);
                 const result = await service.method();
+                console.log(`✅ ${service.name} succeeded!`);
                 return result;
             } catch (error) {
                 errors.push(`${service.name}: ${error.message}`);
                 console.error(`❌ ${service.name} failed:`, error.message);
+                
+                // For AnimePahe, if stealth fails, we still try other methods
+                // For other sites, we might want to fail faster
+                if (!isAnimePahe && service.name.includes('Basic')) {
+                    console.log('🔄 Basic mode failed for regular site, trying premium methods...');
+                }
             }
         }
 
         throw new CustomError(
-            `All proxy services failed. Errors: ${errors.join('; ')}`,
+            `All proxy services failed for ${isAnimePahe ? 'AnimePahe' : 'site'}. Errors: ${errors.join('; ')}`,
             503
         );
     }
