@@ -128,6 +128,70 @@ app.get('/api/debug/scrape-test', async (req, res) => {
     }
 });
 
+// PROXY TEST ENDPOINT - NEW ADDITION FOR TESTING PROXY SERVICES
+app.get('/api/debug/proxy-test', async (req, res) => {
+    const startTime = Date.now();
+    
+    try {
+        console.log('Debug: Starting proxy service test...');
+        console.log('Environment variables:');
+        console.log('- SCRAPINGBEE_API_KEY:', process.env.SCRAPINGBEE_API_KEY ? 'Set' : 'Not Set');
+        console.log('- SCRAPERAPI_KEY:', process.env.SCRAPERAPI_KEY ? 'Set' : 'Not Set');
+        console.log('- VERCEL:', process.env.VERCEL);
+        
+        const VercelProxyManager = require('../utils/vercelProxyManager');
+        
+        // Test with AnimePahe homepage first
+        const testUrl = 'https://animepahe.ru';
+        
+        console.log('Debug: Testing proxy services with:', testUrl);
+        
+        const result = await VercelProxyManager.fetchApiData(testUrl);
+        
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        
+        console.log('Debug: Response received in', duration, 'ms');
+        console.log('Debug: Response size:', result.length, 'characters');
+        
+        // Check if we got actual content or DDoS-Guard page
+        const isDDoSBlocked = result.includes('DDoS-Guard') || 
+                             result.includes('checking your browser') ||
+                             result.length < 1000;
+        
+        res.json({
+            success: !isDDoSBlocked,
+            duration: duration + 'ms',
+            responseSize: result.length + ' characters',
+            blocked: isDDoSBlocked,
+            services: {
+                scrapingbee: !!process.env.SCRAPINGBEE_API_KEY,
+                scraperapi: !!process.env.SCRAPERAPI_KEY
+            },
+            // Include first 500 chars to verify content
+            responsePreview: result.substring(0, 500),
+            containsAnimepaheTitle: result.includes('animepahe') || result.includes('AnimePahe'),
+            containsDDoSGuard: result.includes('DDoS-Guard')
+        });
+        
+    } catch (error) {
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        
+        console.error('Debug: Proxy test error after', duration, 'ms:', error);
+        
+        res.json({
+            success: false,
+            error: error.message,
+            duration: duration + 'ms',
+            services: {
+                scrapingbee: !!process.env.SCRAPINGBEE_API_KEY,
+                scraperapi: !!process.env.SCRAPERAPI_KEY
+            }
+        });
+    }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
     res.json({
@@ -135,7 +199,8 @@ app.get('/', (req, res) => {
         endpoints: [
             'GET /health - Health check',
             'GET /api/health - Health check',
-            'GET /api/debug/scrape-test - Debug scraping issues', // Add this line
+            'GET /api/debug/scrape-test - Debug scraping issues',
+            'GET /api/debug/proxy-test - Test proxy services', // NEW LINE ADDED
             'GET /api/airing - Get airing anime',
             'GET /api/search?q=query - Search anime',
             'GET /api/queue - Get encoding queue',
