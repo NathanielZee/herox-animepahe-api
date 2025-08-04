@@ -1,275 +1,250 @@
-// utils/requestManager.js - Updated to use professional proxy services
+// utils/requestManager.js - Updated to use working proxy system
 const { launchBrowser } = require('./browser');
-const VercelProxyManager = require('./vercelProxyManager');
+const VercelProxyManager = require('./vercelProxyManager'); // NEW: Use working proxy
 const axios = require('axios');
 const Config = require('./config');
 const { CustomError } = require('../middleware/errorHandler');
 
 class RequestManager {
     constructor() {
-        this.sessions = new Map();
-        this.rateLimiter = new Map();
+        this.cookieJar = new Map();
+        this.rateLimitDelay = 1000; // 1 second between requests
         this.lastRequestTime = 0;
-        this.useProxy = process.env.VERCEL === 'true'; // Use proxy on Vercel
+        
+        // NEW: Initialize proxy manager
+        this.proxyManager = new VercelProxyManager();
+        
+        console.log('🔧 RequestManager initialized with proxy support');
     }
 
-    static async delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    static getBrowserHeaders(cookieHeader = '') {
-        const headers = {
-            'User-Agent': Config.userAgent,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
-            'Cache-Control': 'max-age=0',
-            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"'
-        };
-
-        if (cookieHeader) {
-            headers['Cookie'] = cookieHeader;
+    // NEW: Smart request method that chooses the best approach
+    async smartFetch(url, options = {}) {
+        const startTime = Date.now();
+        console.log('🚀 SmartFetch starting for:', url);
+        
+        // Check if we should use proxy (for Vercel environment or AnimePahe)
+        const isVercel = process.env.VERCEL === '1';
+        const isAnimePahe = url.includes('animepahe');
+        const shouldUseProxy = isVercel && isAnimePahe;
+        
+        console.log('🔍 Environment check:', {
+            isVercel,
+            isAnimePahe,
+            shouldUseProxy,
+            hasProxyKeys: !!(process.env.SCRAPINGBEE_API_KEY || process.env.SCRAPERAPI_KEY)
+        });
+        
+        if (shouldUseProxy && (process.env.SCRAPINGBEE_API_KEY || process.env.SCRAPERAPI_KEY)) {
+            console.log('🔄 Using proxy services for AnimePahe...');
+            try {
+                const result = await this.proxyManager.fetch(url, options.cookieHeader || '');
+                const duration = Date.now() - startTime;
+                console.log(`✅ Proxy fetch successful in ${duration}ms`);
+                return result;
+            } catch (error) {
+                console.error('❌ Proxy fetch failed:', error.message);
+                console.log('🔄 Falling back to direct fetch...');
+                // Fall through to direct fetch
+            }
         }
-
-        return headers;
+        
+        // Use direct fetch (for local development or non-AnimePahe URLs)
+        console.log('🌐 Using direct fetch...');
+        return await this.directFetch(url, options);
     }
 
-    async fetchWithProxy(url, cookieHeader) {
-        console.log('🌐 Using professional proxy service for:', url);
+    // Direct fetch method (original logic)
+    async directFetch(url, options = {}) {
+        const startTime = Date.now();
         
         try {
-            return await VercelProxyManager.fetchApiData(url, {}, cookieHeader);
+            // Rate limiting
+            const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+            if (timeSinceLastRequest < this.rateLimitDelay) {
+                const waitTime = this.rateLimitDelay - timeSinceLastRequest;
+                console.log(`⏱️ Rate limiting: waiting ${waitTime}ms`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+            this.lastRequestTime = Date.now();
+
+            const headers = {
+                'User-Agent': Config.userAgent,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                ...options.headers
+            };
+
+            if (options.cookieHeader) {
+                headers['Cookie'] = options.cookieHeader;
+            }
+
+            console.log('🌐 Direct fetch to:', url);
+            
+            const response = await axios.get(url, {
+                headers,
+                timeout: options.timeout || 30000,
+                maxRedirects: 5,
+                validateStatus: status => status < 500 // Accept redirects and client errors
+            });
+
+            const duration = Date.now() - startTime;
+            console.log(`✅ Direct fetch completed in ${duration}ms`);
+
+            // Store cookies if present
+            if (response.headers['set-cookie']) {
+                this.storeCookies(url, response.headers['set-cookie']);
+            }
+
+            return response.data;
+            
         } catch (error) {
-            console.error('❌ Proxy service failed:', error.message);
-            throw error;
+            const duration = Date.now() - startTime;
+            console.error(`❌ Direct fetch failed after ${duration}ms:`, error.message);
+            
+            if (error.response?.status === 403 || error.response?.data?.includes('DDoS-Guard')) {
+                throw new CustomError(`Access blocked by DDoS-Guard protection: ${error.message}`, 403);
+            }
+            
+            throw new CustomError(`Request failed: ${error.message}`, error.response?.status || 500);
         }
     }
 
-    async fetchDirect(url, cookieHeader) {
-        console.log('🔗 Direct fetch for:', url);
-        
-        // Rate limiting
-        const now = Date.now();
-        const timeSinceLastRequest = now - this.lastRequestTime;
-        const minDelay = 1000;
-        
-        if (timeSinceLastRequest < minDelay) {
-            await RequestManager.delay(minDelay - timeSinceLastRequest);
+    // Cookie management
+    storeCookies(url, cookies) {
+        const domain = new URL(url).hostname;
+        if (!this.cookieJar.has(domain)) {
+            this.cookieJar.set(domain, []);
         }
         
-        this.lastRequestTime = Date.now();
-
-        const headers = RequestManager.getBrowserHeaders(cookieHeader);
+        const domainCookies = this.cookieJar.get(domain);
+        cookies.forEach(cookie => {
+            const cookieName = cookie.split('=')[0];
+            // Remove existing cookie with same name
+            const filtered = domainCookies.filter(c => !c.startsWith(cookieName + '='));
+            filtered.push(cookie.split(';')[0]); // Store only name=value part
+            this.cookieJar.set(domain, filtered);
+        });
         
-        if (url.includes('/api/') || url.includes('/play/') || url.includes('/anime/')) {
-            headers['Referer'] = Config.getUrl('home');
-        }
-
-        const requestConfig = {
-            headers,
-            timeout: 20000,
-            validateStatus: (status) => status < 500,
-            maxRedirects: 5,
-            decompress: true
-        };
-
-        const response = await axios.get(url, requestConfig);
-        
-        if (response.status === 403) {
-            throw new CustomError('Access forbidden - DDoS protection active', 403);
-        }
-        
-        if (response.status === 404) {
-            throw new CustomError('Resource not found', 404);
-        }
-        
-        if (response.status >= 400) {
-            throw new CustomError(`HTTP ${response.status}: ${response.statusText}`, response.status);
-        }
-
-        return response.data;
+        console.log(`🍪 Stored cookies for ${domain}:`, domainCookies.length);
     }
 
-    static async retry(fn, maxRetries = 3, baseDelay = 1000) {
+    getCookieHeader(url) {
+        const domain = new URL(url).hostname;
+        const cookies = this.cookieJar.get(domain) || [];
+        return cookies.join('; ');
+    }
+
+    // Browser-based scraping (fallback for very complex cases)
+    async browserFetch(url, options = {}) {
+        console.log('🎭 Starting browser-based scraping for:', url);
+        
+        let browser = null;
+        let page = null;
+        
+        try {
+            browser = await launchBrowser();
+            page = await browser.newPage();
+            
+            // Set user agent
+            await page.setUserAgent(Config.userAgent);
+            
+            // Set cookies if available
+            const cookieHeader = this.getCookieHeader(url);
+            if (cookieHeader) {
+                const domain = new URL(url).hostname;
+                const cookies = cookieHeader.split('; ').map(cookie => {
+                    const [name, value] = cookie.split('=');
+                    return { name, value, domain };
+                });
+                await page.setCookie(...cookies);
+            }
+            
+            // Navigate to page
+            console.log('🌐 Browser navigating to:', url);
+            await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+            
+            // Wait for potential DDoS-Guard challenges
+            if (url.includes('animepahe')) {
+                console.log('⏳ Waiting for AnimePahe to load...');
+                await page.waitForTimeout(5000);
+            }
+            
+            // Get page content
+            const content = await page.content();
+            console.log('✅ Browser fetch completed, content length:', content.length);
+            
+            return content;
+            
+        } catch (error) {
+            console.error('❌ Browser fetch failed:', error.message);
+            throw new CustomError(`Browser fetch failed: ${error.message}`, 500);
+        } finally {
+            if (page) await page.close();
+            if (browser) await browser.close();
+        }
+    }
+
+    // Main fetch method - now uses smart routing
+    async fetch(url, options = {}) {
+        return await this.smartFetch(url, options);
+    }
+
+    // Static method for backward compatibility
+    static async fetchApiData(url, params = {}, cookieHeader = '') {
+        const manager = new RequestManager();
+        
+        const fullUrl = new URL(url);
+        Object.keys(params).forEach(key => {
+            if (params[key] !== null && params[key] !== undefined) {
+                fullUrl.searchParams.append(key, params[key]);
+            }
+        });
+        
+        return await manager.fetch(fullUrl.toString(), { 
+            cookieHeader,
+            timeout: 30000 
+        });
+    }
+
+    // Additional utility methods
+    async fetchWithRetry(url, options = {}, maxRetries = 3) {
         let lastError;
         
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return await fn();
+                console.log(`🔄 Attempt ${attempt}/${maxRetries} for:`, url);
+                return await this.smartFetch(url, options);
             } catch (error) {
                 lastError = error;
+                console.error(`❌ Attempt ${attempt} failed:`, error.message);
                 
-                if (error?.response?.status === 404 || 
-                    error?.response?.status === 401) {
-                    throw error;
+                if (attempt < maxRetries) {
+                    const backoffDelay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+                    console.log(`⏳ Waiting ${backoffDelay}ms before retry...`);
+                    await new Promise(resolve => setTimeout(resolve, backoffDelay));
                 }
-                
-                if (attempt === maxRetries) {
-                    console.error(`❌ All ${maxRetries} attempts failed. Last error:`, error.message);
-                    throw error;
-                }
-                
-                const delay = baseDelay * Math.pow(2, attempt - 1);
-                console.log(`⏳ Attempt ${attempt} failed, retrying in ${delay}ms...`);
-                await this.delay(delay);
             }
         }
         
         throw lastError;
     }
 
-    static async fetch(url, cookieHeader, type = 'default') {
-        const instance = new RequestManager();
-        
-        return this.retry(async () => {
-            // Use proxy for animepahe.ru on Vercel, direct elsewhere
-            if (url.includes('animepahe.ru') && instance.useProxy) {
-                return await instance.fetchWithProxy(url, cookieHeader);
-            }
-            
-            if (type === 'heavy') {
-                return instance.scrapeWithPlaywright(url);
-            }
-            
-            return await instance.fetchDirect(url, cookieHeader);
-        }, 3, 1000);
-    }
-
-    async scrapeWithPlaywright(url) {
-        console.log('🎭 Using Playwright for:', url);
-        
-        let browser = null;
-        let context = null;
-        let page = null;
-
+    // Health check method
+    async healthCheck() {
         try {
-            browser = await Promise.race([
-                launchBrowser(),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Browser launch timeout')), 30000)
-                )
-            ]);
-
-            const contextOptions = {
-                userAgent: Config.userAgent,
-                viewport: { width: 1920, height: 1080 },
-                extraHTTPHeaders: RequestManager.getBrowserHeaders()
+            const testUrl = 'https://httpbin.org/get';
+            await this.smartFetch(testUrl, { timeout: 10000 });
+            return { healthy: true, timestamp: new Date().toISOString() };
+        } catch (error) {
+            return { 
+                healthy: false, 
+                error: error.message, 
+                timestamp: new Date().toISOString() 
             };
-
-            context = await browser.newContext(contextOptions);
-            context.setDefaultTimeout(60000);
-            context.setDefaultNavigationTimeout(60000);
-
-            page = await context.newPage();
-
-            await page.addInitScript(() => {
-                delete navigator.__proto__.webdriver;
-                
-                Object.defineProperty(navigator, 'plugins', {
-                    get: () => [1, 2, 3, 4, 5],
-                });
-                
-                Object.defineProperty(navigator, 'languages', {
-                    get: () => ['en-US', 'en'],
-                });
-            });
-
-            console.log('🚀 Navigating to URL...');
-            
-            await page.goto(url, { 
-                waitUntil: 'domcontentloaded', 
-                timeout: 45000 
-            });
-
-            const title = await page.title();
-            if (title.includes('DDoS') || title.includes('Guard')) {
-                console.log('🛡️ DDoS-Guard challenge detected, waiting for bypass...');
-                
-                try {
-                    await page.waitForFunction(
-                        () => !document.title.includes('DDoS') && !document.body.innerHTML.includes('checking'),
-                        { timeout: 30000 }
-                    );
-                    console.log('✅ DDoS-Guard challenge completed');
-                } catch (e) {
-                    console.log('⏰ Challenge timeout, proceeding with current content...');
-                }
-            }
-
-            await RequestManager.delay(3000);
-            const finalContent = await page.content();
-            
-            if (finalContent.length < 1000) {
-                throw new Error('Page content too short, might be blocked');
-            }
-
-            return finalContent;
-
-        } catch (error) {
-            console.error('❌ Playwright error:', error.message);
-            throw new CustomError(`Playwright failed: ${error.message}`, 503);
-        } finally {
-            try {
-                if (page) await page.close();
-                if (context) await context.close();
-                if (browser) await browser.close();
-            } catch (cleanupError) {
-                console.error('Cleanup error:', cleanupError.message);
-            }
         }
-    }
-
-    static async fetchApiData(url, params = {}, cookieHeader) {
-        const instance = new RequestManager();
-        
-        try {
-            const fullUrl = new URL(url);
-            Object.keys(params).forEach(key => {
-                if (params[key] !== null && params[key] !== undefined) {
-                    fullUrl.searchParams.append(key, params[key]);
-                }
-            });
-            
-            if (fullUrl.href.includes('animepahe.ru') && instance.useProxy) {
-                return await instance.fetchWithProxy(fullUrl.href, cookieHeader);
-            }
-            
-            return await instance.fetchDirect(fullUrl.href, cookieHeader);
-            
-        } catch (error) {
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw new CustomError(`API request failed: ${error.message}`, error.response?.status || 503);
-        }
-    }
-
-    static async fetchJson(url) {
-        return this.retry(async () => {
-            const html = await this.fetch(url);
-            
-            try {
-                const jsonMatch = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i) || 
-                                 html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-                
-                if (jsonMatch) {
-                    return JSON.parse(jsonMatch[1].trim());
-                } else {
-                    return JSON.parse(html);
-                }
-            } catch (parseError) {
-                throw new Error(`Failed to parse JSON from ${url}: ${parseError.message}`);
-            }
-        }, 2, 2000);
     }
 }
 
