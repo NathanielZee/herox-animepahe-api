@@ -2,8 +2,7 @@
   "version": 2,
   "functions": {
     "api/index.js": {
-      "maxDuration": 30,
-      "maxLambdaSize": "50mb"
+      "maxDuration": 30
     }
   },
   "routes": [
