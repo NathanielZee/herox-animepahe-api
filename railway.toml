@@ -1,5 +1,5 @@
 [build]
-builder = "npm install && npx playwright install"
+builder = "NIXPACKS"
 
 [deploy]
 startCommand = "npm start"
