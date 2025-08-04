@@ -26,23 +26,24 @@ class VercelProxyManager {
         console.log(`🐝 Using ScrapingBee in ${mode} mode for:`, url);
         console.log('🐝 API Key (first 10 chars):', this.services.scrapingbee.key.substring(0, 10) + '...');
         
+        // FIXED: Use correct parameter names and values
         let params = {
             api_key: this.services.scrapingbee.key,
-            url: encodeURIComponent(url), // Properly encode URL
+            url: url, // Don't double-encode - axios will handle this
             country_code: 'us'
         };
 
-        // Configure parameters based on mode
+        // Configure parameters based on mode - FIXED parameter names
         switch (mode) {
             case 'stealth':
                 console.log('🥷 Using STEALTH mode - 75 credits per request');
                 params = {
                     ...params,
-                    stealth_proxy: 'true',      // Enable stealth proxy
-                    render_js: 'true',          // Required for stealth
-                    wait: '3000',              // Wait 3 seconds for JS
-                    block_resources: 'false',   // Don't block resources
-                    premium_proxy: 'true'       // Also enable premium
+                    stealth_proxy: true,        // Boolean, not string
+                    render_js: true,            // Boolean, not string
+                    wait: 3000,                // Number, not string
+                    block_resources: false,     // Boolean, not string
+                    premium_proxies: true       // FIXED: premium_proxies (plural)
                 };
                 break;
                 
@@ -50,10 +51,10 @@ class VercelProxyManager {
                 console.log('💎 Using PREMIUM mode - 25 credits per request');
                 params = {
                     ...params,
-                    premium_proxy: 'true',      // Enable premium proxy
-                    render_js: 'true',          // Enable JS rendering
-                    wait: '2000',              // Wait 2 seconds
-                    block_resources: 'false'    // Don't block resources
+                    premium_proxies: true,      // FIXED: premium_proxies (plural)
+                    render_js: true,            // Boolean, not string
+                    wait: 2000,                // Number, not string
+                    block_resources: false      // Boolean, not string
                 };
                 break;
                 
@@ -62,9 +63,9 @@ class VercelProxyManager {
                 console.log('🔰 Using BASIC mode - 1 credit per request');
                 params = {
                     ...params,
-                    render_js: 'false',         // No JS for basic mode
-                    premium_proxy: 'false',     // No premium for basic
-                    block_resources: 'true'     // Block resources to save time
+                    render_js: false,           // Boolean, not string
+                    premium_proxies: false,     // FIXED: premium_proxies (plural)
+                    block_resources: true       // Boolean, not string
                 };
                 break;
         }
@@ -123,12 +124,12 @@ class VercelProxyManager {
         console.log('🔧 Using ScraperAPI for:', url);
         console.log('🔧 API Key (first 10 chars):', this.services.scraperapi.key.substring(0, 10) + '...');
         
-        // Enhanced parameters for difficult sites
+        // FIXED: Use correct parameter format for ScraperAPI
         const params = {
             api_key: this.services.scraperapi.key,
-            url: encodeURIComponent(url), // Properly encode URL
-            render: 'true',           // Enable JS rendering
-            premium: 'true',          // Use premium proxies
+            url: url, // Don't double-encode - axios will handle this
+            render: true,                  // Boolean, not string
+            premium: true,                 // Boolean, not string  
             country_code: 'us',
             session_number: Math.floor(Math.random() * 1000) // Random session
         };
