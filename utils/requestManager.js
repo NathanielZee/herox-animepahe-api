@@ -1,22 +1,22 @@
-// utils/requestManager.js - Enhanced version with DDoS-Guard bypass
+// utils/requestManager.js - Updated to use professional proxy services
 const { launchBrowser } = require('./browser');
-const cheerio = require('cheerio');
+const VercelProxyManager = require('./vercelProxyManager');
 const axios = require('axios');
 const Config = require('./config');
 const { CustomError } = require('../middleware/errorHandler');
 
 class RequestManager {
     constructor() {
-        this.sessions = new Map(); // Store cookies per session
-        this.rateLimiter = new Map(); // Track request timing
+        this.sessions = new Map();
+        this.rateLimiter = new Map();
         this.lastRequestTime = 0;
+        this.useProxy = process.env.VERCEL === 'true'; // Use proxy on Vercel
     }
 
     static async delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // Generate realistic browser fingerprint
     static getBrowserHeaders(cookieHeader = '') {
         const headers = {
             'User-Agent': Config.userAgent,
@@ -43,109 +43,47 @@ class RequestManager {
         return headers;
     }
 
-    // Enhanced DDoS-Guard bypass with multiple strategies
-    static async bypassDDoSGuard(url, cookieHeader, maxRetries = 3) {
-        console.log(`🛡️ Attempting DDoS-Guard bypass for: ${url}`);
+    async fetchWithProxy(url, cookieHeader) {
+        console.log('🌐 Using professional proxy service for:', url);
         
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                console.log(`🔄 Bypass attempt ${attempt}/${maxRetries}`);
-                
-                // Strategy 1: Enhanced headers with delays
-                const result = await this.fetchWithEnhancedHeaders(url, cookieHeader);
-                
-                // Check if we got through
-                if (!this.isDDoSGuardBlocked(result)) {
-                    console.log(`✅ DDoS-Guard bypass successful on attempt ${attempt}`);
-                    return result;
-                }
-                
-                // Strategy 2: Use Playwright for JavaScript challenges
-                if (attempt === 2) {
-                    console.log(`🎭 Trying Playwright approach...`);
-                    const playwrightResult = await this.scrapeWithPlaywright(url);
-                    
-                    if (!this.isDDoSGuardBlocked(playwrightResult)) {
-                        console.log(`✅ Playwright bypass successful`);
-                        return playwrightResult;
-                    }
-                }
-                
-                // Progressive delays between attempts
-                const delay = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
-                console.log(`⏳ Waiting ${delay}ms before next attempt...`);
-                await this.delay(delay);
-                
-            } catch (error) {
-                console.error(`❌ Bypass attempt ${attempt} failed:`, error.message);
-                
-                if (attempt === maxRetries) {
-                    throw error;
-                }
-            }
+        try {
+            return await VercelProxyManager.fetchApiData(url, {}, cookieHeader);
+        } catch (error) {
+            console.error('❌ Proxy service failed:', error.message);
+            throw error;
         }
-        
-        throw new CustomError('DDoS-Guard bypass failed after all attempts', 403);
     }
 
-    // Check if response is blocked by DDoS-Guard
-    static isDDoSGuardBlocked(content) {
-        if (!content) return true;
+    async fetchDirect(url, cookieHeader) {
+        console.log('🔗 Direct fetch for:', url);
         
-        const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
-        
-        return contentStr.includes('DDoS-GUARD') ||
-               contentStr.includes('ddos-guard') ||
-               contentStr.includes('checking your browser') ||
-               contentStr.includes('challenge') ||
-               contentStr.length < 1000; // Suspiciously short content
-    }
-
-    // Enhanced fetch with better headers and timing
-    static async fetchWithEnhancedHeaders(url, cookieHeader) {
-        // Rate limiting - ensure minimum delay between requests
+        // Rate limiting
         const now = Date.now();
         const timeSinceLastRequest = now - this.lastRequestTime;
-        const minDelay = 1000; // 1 second minimum between requests
+        const minDelay = 1000;
         
         if (timeSinceLastRequest < minDelay) {
-            await this.delay(minDelay - timeSinceLastRequest);
+            await RequestManager.delay(minDelay - timeSinceLastRequest);
         }
         
         this.lastRequestTime = Date.now();
 
-        const headers = this.getBrowserHeaders(cookieHeader);
+        const headers = RequestManager.getBrowserHeaders(cookieHeader);
         
-        // Add referrer for internal pages
         if (url.includes('/api/') || url.includes('/play/') || url.includes('/anime/')) {
             headers['Referer'] = Config.getUrl('home');
         }
 
         const requestConfig = {
             headers,
-            timeout: 20000, // 20 second timeout
+            timeout: 20000,
             validateStatus: (status) => status < 500,
             maxRedirects: 5,
             decompress: true
         };
 
-        // Add proxy if enabled
-        if (Config.proxyEnabled) {
-            const proxyUrl = Config.getRandomProxy();
-            if (proxyUrl) {
-                const [host, port] = proxyUrl.replace(/^https?:\/\//, '').split(':');
-                requestConfig.proxy = {
-                    host: host,
-                    port: parseInt(port),
-                    protocol: 'http'
-                };
-                console.log(`🔄 Using proxy: ${proxyUrl}`);
-            }
-        }
-
         const response = await axios.get(url, requestConfig);
         
-        // Enhanced error handling
         if (response.status === 403) {
             throw new CustomError('Access forbidden - DDoS protection active', 403);
         }
@@ -161,7 +99,6 @@ class RequestManager {
         return response.data;
     }
 
-    // Retry with exponential backoff and DDoS-Guard handling
     static async retry(fn, maxRetries = 3, baseDelay = 1000) {
         let lastError;
         
@@ -171,17 +108,9 @@ class RequestManager {
             } catch (error) {
                 lastError = error;
                 
-                // Don't retry on certain errors
                 if (error?.response?.status === 404 || 
                     error?.response?.status === 401) {
                     throw error;
-                }
-                
-                // Special handling for DDoS-Guard
-                if (error?.response?.status === 403 || 
-                    (error.message && error.message.includes('DDoS'))) {
-                    console.log(`🛡️ DDoS-Guard detected, using bypass strategies...`);
-                    // This will be handled by the bypass function
                 }
                 
                 if (attempt === maxRetries) {
@@ -199,23 +128,23 @@ class RequestManager {
     }
 
     static async fetch(url, cookieHeader, type = 'default') {
+        const instance = new RequestManager();
+        
         return this.retry(async () => {
-            // Always try DDoS-Guard bypass first for AnimePahe URLs
-            if (url.includes('animepahe.ru')) {
-                return await this.bypassDDoSGuard(url, cookieHeader);
+            // Use proxy for animepahe.ru on Vercel, direct elsewhere
+            if (url.includes('animepahe.ru') && instance.useProxy) {
+                return await instance.fetchWithProxy(url, cookieHeader);
             }
             
-            if (type === 'default') {
-                return this.fetchApiData(url, {}, cookieHeader);
-            } else if (type === 'heavy') {
-                return this.scrapeWithPlaywright(url);
-            } else {
-                throw new Error('Invalid fetch type specified. Please use "default" or "heavy".');
+            if (type === 'heavy') {
+                return instance.scrapeWithPlaywright(url);
             }
+            
+            return await instance.fetchDirect(url, cookieHeader);
         }, 3, 1000);
     }
 
-    static async scrapeWithPlaywright(url) {
+    async scrapeWithPlaywright(url) {
         console.log('🎭 Using Playwright for:', url);
         
         let browser = null;
@@ -233,15 +162,8 @@ class RequestManager {
             const contextOptions = {
                 userAgent: Config.userAgent,
                 viewport: { width: 1920, height: 1080 },
-                extraHTTPHeaders: this.getBrowserHeaders()
+                extraHTTPHeaders: RequestManager.getBrowserHeaders()
             };
-
-            if (Config.proxyEnabled) {
-                const proxy = Config.getRandomProxy();
-                if (proxy) {
-                    contextOptions.proxy = { server: proxy };
-                }
-            }
 
             context = await browser.newContext(contextOptions);
             context.setDefaultTimeout(60000);
@@ -249,28 +171,16 @@ class RequestManager {
 
             page = await context.newPage();
 
-            // Enhanced stealth measures
             await page.addInitScript(() => {
-                // Remove webdriver property
                 delete navigator.__proto__.webdriver;
                 
-                // Override plugins
                 Object.defineProperty(navigator, 'plugins', {
                     get: () => [1, 2, 3, 4, 5],
                 });
                 
-                // Override languages
                 Object.defineProperty(navigator, 'languages', {
                     get: () => ['en-US', 'en'],
                 });
-                
-                // Override permissions
-                const originalQuery = window.navigator.permissions.query;
-                window.navigator.permissions.query = (parameters) => (
-                    parameters.name === 'notifications' ?
-                        Promise.resolve({ state: Notification.permission }) :
-                        originalQuery(parameters)
-                );
             });
 
             console.log('🚀 Navigating to URL...');
@@ -280,13 +190,11 @@ class RequestManager {
                 timeout: 45000 
             });
 
-            // Handle DDoS-Guard challenges
             const title = await page.title();
             if (title.includes('DDoS') || title.includes('Guard')) {
                 console.log('🛡️ DDoS-Guard challenge detected, waiting for bypass...');
                 
                 try {
-                    // Wait for challenge to complete
                     await page.waitForFunction(
                         () => !document.title.includes('DDoS') && !document.body.innerHTML.includes('checking'),
                         { timeout: 30000 }
@@ -297,9 +205,7 @@ class RequestManager {
                 }
             }
 
-            // Additional wait for dynamic content
-            await this.delay(3000);
-
+            await RequestManager.delay(3000);
             const finalContent = await page.content();
             
             if (finalContent.length < 1000) {
@@ -323,65 +229,27 @@ class RequestManager {
     }
 
     static async fetchApiData(url, params = {}, cookieHeader) {
-        // For API endpoints, use the enhanced bypass
-        if (url.includes('animepahe.ru')) {
-            return await this.bypassDDoSGuard(url, cookieHeader);
-        }
-        
-        if (!cookieHeader) {
-            throw new CustomError('Authentication required', 403);
-        }
+        const instance = new RequestManager();
         
         try {
-            const requestConfig = {
-                params: params,
-                headers: this.getBrowserHeaders(cookieHeader),
-                timeout: 20000,
-                validateStatus: (status) => status < 500
-            };
-
-            if (Config.proxyEnabled) {
-                const proxyUrl = Config.getRandomProxy();
-                if (proxyUrl) {
-                    const [host, port] = proxyUrl.replace(/^https?:\/\//, '').split(':');
-                    requestConfig.proxy = {
-                        host: host,
-                        port: parseInt(port),
-                        protocol: 'http'
-                    };
+            const fullUrl = new URL(url);
+            Object.keys(params).forEach(key => {
+                if (params[key] !== null && params[key] !== undefined) {
+                    fullUrl.searchParams.append(key, params[key]);
                 }
-            }
-
-            const response = await axios.get(url, requestConfig);
-
-            if (this.isDDoSGuardBlocked(response.data)) {
-                throw new CustomError('DDoS-Guard protection detected', 403);
-            }
-
-            if (response.status === 404) {
-                throw new CustomError('Resource not found', 404);
-            }
-
-            if (response.status >= 400) {
-                throw new CustomError(`HTTP ${response.status}: ${response.statusText}`, response.status);
-            }
-
-            return response.data;
-
-        } catch (error) {
-            if (error.code === 'ECONNABORTED') {
-                throw new CustomError('Request timeout', 408);
+            });
+            
+            if (fullUrl.href.includes('animepahe.ru') && instance.useProxy) {
+                return await instance.fetchWithProxy(fullUrl.href, cookieHeader);
             }
             
-            if (error.code === 'ECONNREFUSED') {
-                throw new CustomError('Connection refused', 503);
-            }
-
+            return await instance.fetchDirect(fullUrl.href, cookieHeader);
+            
+        } catch (error) {
             if (error instanceof CustomError) {
                 throw error;
             }
-
-            throw new CustomError(`Request failed: ${error.message}`, error.response?.status || 503);
+            throw new CustomError(`API request failed: ${error.message}`, error.response?.status || 503);
         }
     }
 
@@ -404,8 +272,5 @@ class RequestManager {
         }, 2, 2000);
     }
 }
-
-// Create singleton instance
-const requestManager = new RequestManager();
 
 module.exports = RequestManager;
