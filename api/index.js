@@ -231,6 +231,156 @@ app.get('/api/debug/proxy-test', async (req, res) => {
     }
 });
 
+// STEP-BY-STEP PROXY TEST ENDPOINT - NEW DIAGNOSTIC TOOL
+app.get('/api/debug/proxy-step-test', async (req, res) => {
+    const results = [];
+    const startTime = Date.now();
+    
+    try {
+        const VercelProxyManager = require('../utils/vercelProxyManager');
+        const manager = new VercelProxyManager();
+        
+        console.log('🔍 Starting step-by-step proxy testing...');
+        
+        // Test sites in order of difficulty
+        const testSites = [
+            { name: 'HTTPBin (Simple)', url: 'https://httpbin.org/get' },
+            { name: 'Google (Basic)', url: 'https://www.google.com' },
+            { name: 'MyAnimeList (Anime Site)', url: 'https://myanimelist.net' },
+            { name: 'AnimePahe (Target)', url: 'https://animepahe.ru' }
+        ];
+        
+        for (const site of testSites) {
+            console.log(`🧪 Testing ${site.name}: ${site.url}`);
+            const siteStartTime = Date.now();
+            
+            try {
+                // Test ScrapingBee with different modes
+                let scrapingbeeResult = null;
+                if (manager.services.scrapingbee.enabled) {
+                    try {
+                        // For AnimePahe, use stealth mode
+                        const isAnimePahe = site.url.includes('animepahe');
+                        const data = await manager.fetchWithScrapingBee(site.url, isAnimePahe ? 'stealth' : 'basic');
+                        
+                        scrapingbeeResult = {
+                            success: true,
+                            responseLength: data.length,
+                            containsDDoSGuard: data.includes('DDoS-Guard'),
+                            responsePreview: data.substring(0, 100),
+                            mode: isAnimePahe ? 'stealth' : 'basic'
+                        };
+                    } catch (error) {
+                        scrapingbeeResult = {
+                            success: false,
+                            error: error.message,
+                            status: error.response?.status
+                        };
+                    }
+                }
+                
+                // Test ScraperAPI second
+                let scraperapiResult = null;
+                if (manager.services.scraperapi.enabled) {
+                    try {
+                        const data = await manager.fetchWithScraperAPI(site.url);
+                        scraperapiResult = {
+                            success: true,
+                            responseLength: data.length,
+                            containsDDoSGuard: data.includes('DDoS-Guard'),
+                            responsePreview: data.substring(0, 100)
+                        };
+                    } catch (error) {
+                        scraperapiResult = {
+                            success: false,
+                            error: error.message,
+                            status: error.response?.status
+                        };
+                    }
+                }
+                
+                const siteEndTime = Date.now();
+                const siteDuration = siteEndTime - siteStartTime;
+                
+                results.push({
+                    site: site.name,
+                    url: site.url,
+                    duration: siteDuration + 'ms',
+                    scrapingbee: scrapingbeeResult,
+                    scraperapi: scraperapiResult
+                });
+                
+                console.log(`✅ Completed ${site.name} in ${siteDuration}ms`);
+                
+            } catch (error) {
+                const siteEndTime = Date.now();
+                const siteDuration = siteEndTime - siteStartTime;
+                
+                results.push({
+                    site: site.name,
+                    url: site.url,
+                    duration: siteDuration + 'ms',
+                    error: error.message
+                });
+                
+                console.log(`❌ Failed ${site.name} after ${siteDuration}ms: ${error.message}`);
+            }
+        }
+        
+        const endTime = Date.now();
+        const totalDuration = endTime - startTime;
+        
+        res.json({
+            success: true,
+            totalDuration: totalDuration + 'ms',
+            results: results,
+            summary: {
+                sitesSuccessful: results.filter(r => !r.error).length,
+                totalSites: results.length,
+                services: {
+                    scrapingbee: !!process.env.SCRAPINGBEE_API_KEY,
+                    scraperapi: !!process.env.SCRAPERAPI_KEY
+                }
+            }
+        });
+        
+    } catch (error) {
+        const endTime = Date.now();
+        const totalDuration = endTime - startTime;
+        
+        res.json({
+            success: false,
+            error: error.message,
+            totalDuration: totalDuration + 'ms',
+            results: results
+        });
+    }
+});
+
+// CONFIG CHECK ENDPOINT - Check what USE_PROXY affects
+app.get('/api/debug/config-check', (req, res) => {
+    const Config = require('../utils/config');
+    
+    res.json({
+        environment_variables: {
+            USE_PROXY: process.env.USE_PROXY,
+            BASE_URL: process.env.BASE_URL,
+            USER_AGENT: process.env.USER_AGENT ? 'Set' : 'Not Set',
+            SCRAPINGBEE_API_KEY: process.env.SCRAPINGBEE_API_KEY ? 'Set' : 'Not Set',
+            SCRAPERAPI_KEY: process.env.SCRAPERAPI_KEY ? 'Set' : 'Not Set'
+        },
+        config_object: {
+            proxyEnabled: Config.proxyEnabled,
+            baseUrl: Config.baseUrl,
+            userAgent: Config.userAgent ? 'Set' : 'Not Set'
+        },
+        recommendations: {
+            current_use_proxy: process.env.USE_PROXY,
+            suggested_change: process.env.USE_PROXY === 'false' ? 'Try setting USE_PROXY=true' : 'USE_PROXY is already true'
+        }
+    });
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
     res.json({
@@ -239,8 +389,10 @@ app.get('/', (req, res) => {
             'GET /health - Health check',
             'GET /api/health - Health check',
             'GET /api/debug/scrape-test - Debug scraping issues',
-            'GET /api/debug/api-key-test - Test API keys validity', // NEW LINE ADDED
-            'GET /api/debug/proxy-test - Test proxy services', // NEW LINE ADDED
+            'GET /api/debug/api-key-test - Test API keys validity',
+            'GET /api/debug/proxy-test - Test proxy services',
+            'GET /api/debug/proxy-step-test - Step-by-step proxy testing', // NEW
+            'GET /api/debug/config-check - Check configuration values', // NEW
             'GET /api/airing - Get airing anime',
             'GET /api/search?q=query - Search anime',
             'GET /api/queue - Get encoding queue',
