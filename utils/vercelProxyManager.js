@@ -33,17 +33,17 @@ class VercelProxyManager {
             country_code: 'us'
         };
 
-        // Configure parameters based on mode - FIXED parameter names
+        // Configure parameters based on mode - FIXED parameter format
         switch (mode) {
             case 'stealth':
                 console.log('🥷 Using STEALTH mode - 75 credits per request');
                 params = {
                     ...params,
-                    stealth_proxy: true,        // Boolean, not string
-                    render_js: true,            // Boolean, not string
-                    wait: 3000,                // Number, not string
-                    block_resources: false,     // Boolean, not string
-                    premium_proxies: true       // FIXED: premium_proxies (plural)
+                    stealth_proxy: 'True',      // String 'True', not boolean
+                    render_js: 'True',          // String 'True', not boolean
+                    wait: 3000,                // Number is fine
+                    block_resources: 'False',   // String 'False', not boolean
+                    premium_proxies: 'True'     // String 'True', not boolean
                 };
                 break;
                 
@@ -51,10 +51,10 @@ class VercelProxyManager {
                 console.log('💎 Using PREMIUM mode - 25 credits per request');
                 params = {
                     ...params,
-                    premium_proxies: true,      // FIXED: premium_proxies (plural)
-                    render_js: true,            // Boolean, not string
-                    wait: 2000,                // Number, not string
-                    block_resources: false      // Boolean, not string
+                    premium_proxies: 'True',    // String 'True', not boolean
+                    render_js: 'True',          // String 'True', not boolean
+                    wait: 2000,                // Number is fine
+                    block_resources: 'False'    // String 'False', not boolean
                 };
                 break;
                 
@@ -63,9 +63,9 @@ class VercelProxyManager {
                 console.log('🔰 Using BASIC mode - 1 credit per request');
                 params = {
                     ...params,
-                    render_js: false,           // Boolean, not string
-                    premium_proxies: false,     // FIXED: premium_proxies (plural)
-                    block_resources: true       // Boolean, not string
+                    render_js: 'False',         // String 'False', not boolean
+                    premium_proxies: 'False',   // String 'False', not boolean
+                    block_resources: 'True'     // String 'True', not boolean
                 };
                 break;
         }
