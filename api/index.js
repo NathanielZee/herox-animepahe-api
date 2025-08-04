@@ -55,6 +55,79 @@ app.get('/api/health', (req, res) => {
     res.json(health);
 });
 
+// DEBUG ENDPOINT - Add this for testing
+app.get('/api/debug/scrape-test', async (req, res) => {
+    const startTime = Date.now();
+    
+    try {
+        console.log('Debug: Starting scrape test...');
+        console.log('Environment variables:');
+        console.log('- BASE_URL:', process.env.BASE_URL);
+        console.log('- USER_AGENT:', process.env.USER_AGENT ? 'Set' : 'Not Set');
+        console.log('- NODE_ENV:', process.env.NODE_ENV);
+        
+        // Test basic connectivity to AnimePahe
+        const testUrl = process.env.BASE_URL || 'https://animepahe.ru';
+        
+        console.log('Debug: Testing basic fetch to:', testUrl);
+        
+        const response = await fetch(testUrl, {
+            method: 'GET',
+            headers: {
+                'User-Agent': process.env.USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Connection': 'keep-alive'
+            },
+            signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+        
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        
+        console.log('Debug: Response received in', duration, 'ms');
+        console.log('Debug: Status:', response.status);
+        console.log('Debug: Headers:', Object.fromEntries(response.headers.entries()));
+        
+        const responseText = await response.text();
+        const responseSize = responseText.length;
+        
+        res.json({
+            success: true,
+            status: response.status,
+            duration: duration + 'ms',
+            responseSize: responseSize + ' characters',
+            headers: Object.fromEntries(response.headers.entries()),
+            environment: {
+                BASE_URL: process.env.BASE_URL,
+                USER_AGENT: process.env.USER_AGENT ? 'Set (' + process.env.USER_AGENT.substring(0, 50) + '...)' : 'Not Set',
+                NODE_ENV: process.env.NODE_ENV,
+                VERCEL: process.env.VERCEL ? 'true' : 'false'
+            },
+            // Include first 500 chars of response to see if we got HTML
+            responsePreview: responseText.substring(0, 500)
+        });
+        
+    } catch (error) {
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        
+        console.error('Debug: Error after', duration, 'ms:', error);
+        
+        res.json({
+            success: false,
+            error: error.message,
+            duration: duration + 'ms',
+            environment: {
+                BASE_URL: process.env.BASE_URL,
+                USER_AGENT: process.env.USER_AGENT ? 'Set' : 'Not Set',
+                NODE_ENV: process.env.NODE_ENV,
+                VERCEL: process.env.VERCEL ? 'true' : 'false'
+            }
+        });
+    }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
     res.json({
@@ -62,6 +135,7 @@ app.get('/', (req, res) => {
         endpoints: [
             'GET /health - Health check',
             'GET /api/health - Health check',
+            'GET /api/debug/scrape-test - Debug scraping issues', // Add this line
             'GET /api/airing - Get airing anime',
             'GET /api/search?q=query - Search anime',
             'GET /api/queue - Get encoding queue',
