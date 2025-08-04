@@ -1,10 +1,10 @@
-// utils/vercelProxyManager.js - Professional proxy solution for Vercel
+// utils/vercelProxyManager.js - Fixed to match your environment variable names
 const axios = require('axios');
 const { CustomError } = require('../middleware/errorHandler');
 
 class VercelProxyManager {
     constructor() {
-        // Professional services that actually work
+        // Professional services that actually work - FIXED VARIABLE NAMES
         this.services = {
             scrapingbee: {
                 enabled: !!process.env.SCRAPINGBEE_API_KEY,
