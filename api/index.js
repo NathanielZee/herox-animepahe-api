@@ -128,6 +128,45 @@ app.get('/api/debug/scrape-test', async (req, res) => {
     }
 });
 
+// API KEY TEST ENDPOINT - NEW ADDITION FOR TESTING API KEYS
+app.get('/api/debug/api-key-test', async (req, res) => {
+    const startTime = Date.now();
+    
+    try {
+        console.log('Debug: Testing API keys...');
+        
+        const VercelProxyManager = require('../utils/vercelProxyManager');
+        const manager = new VercelProxyManager();
+        
+        const results = await manager.testApiKeys();
+        
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        
+        res.json({
+            success: Object.values(results).some(r => r.working),
+            duration: duration + 'ms',
+            results: results,
+            environment: {
+                scrapingbee_key_set: !!process.env.SCRAPINGBEE_API_KEY,
+                scraperapi_key_set: !!process.env.SCRAPERAPI_KEY,
+                scrapingbee_key_preview: process.env.SCRAPINGBEE_API_KEY ? process.env.SCRAPINGBEE_API_KEY.substring(0, 10) + '...' : 'Not set',
+                scraperapi_key_preview: process.env.SCRAPERAPI_KEY ? process.env.SCRAPERAPI_KEY.substring(0, 10) + '...' : 'Not set'
+            }
+        });
+        
+    } catch (error) {
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        
+        res.json({
+            success: false,
+            error: error.message,
+            duration: duration + 'ms'
+        });
+    }
+});
+
 // PROXY TEST ENDPOINT - NEW ADDITION FOR TESTING PROXY SERVICES
 app.get('/api/debug/proxy-test', async (req, res) => {
     const startTime = Date.now();
@@ -200,6 +239,7 @@ app.get('/', (req, res) => {
             'GET /health - Health check',
             'GET /api/health - Health check',
             'GET /api/debug/scrape-test - Debug scraping issues',
+            'GET /api/debug/api-key-test - Test API keys validity', // NEW LINE ADDED
             'GET /api/debug/proxy-test - Test proxy services', // NEW LINE ADDED
             'GET /api/airing - Get airing anime',
             'GET /api/search?q=query - Search anime',
