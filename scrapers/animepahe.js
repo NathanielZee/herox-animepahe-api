@@ -1,10 +1,11 @@
-// scrapers/animepahe.js - Fixed version with proper API handling
+// scrapers/animepahe.js - Complete fixed version with enhanced play page scraping
 const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
 const RequestManager = require("../utils/requestManager");
 const { launchBrowser } = require('../utils/browser');
 const { CustomError } = require('../middleware/errorHandler');
+const axios = require('axios');
 const os = require('os');
 
 class Animepahe {
@@ -319,34 +320,336 @@ class Animepahe {
         return html;
     }
 
+    // ENHANCED: Multi-strategy play page scraping
     async scrapePlayPage(id, episodeId) {
         if (!id || !episodeId) {
             throw new CustomError('Both ID and episode ID are required', 400);
         }
 
         const url = Config.getUrl('play', id, episodeId);
+        console.log('▶️ Enhanced scraping play page:', url);
+        
+        // Try multiple strategies for play page scraping
+        const strategies = [
+            () => this.scrapePlayPageWithBrowser(url),
+            () => this.scrapePlayPageWithAxios(url),
+            () => this.scrapePlayPageWithAlternativeMethod(url)
+        ];
+
+        let lastError = null;
+        
+        for (let i = 0; i < strategies.length; i++) {
+            try {
+                console.log(`🎯 Trying play page strategy ${i + 1}/${strategies.length}...`);
+                const result = await strategies[i]();
+                
+                if (result && result.length > 500) {
+                    console.log(`✅ Play page strategy ${i + 1} successful!`);
+                    return result;
+                } else {
+                    throw new Error('Content too short or empty');
+                }
+            } catch (error) {
+                console.log(`❌ Strategy ${i + 1} failed:`, error.message);
+                lastError = error;
+                
+                // Add delay between strategies
+                if (i < strategies.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+        }
+        
+        throw new CustomError(
+            `Failed to scrape play page after ${strategies.length} attempts: ${lastError?.message}`,
+            lastError?.response?.status || 503
+        );
+    }
+
+    // Strategy 1: Enhanced browser scraping with maximum stealth
+    async scrapePlayPageWithBrowser(url) {
+        console.log('🕷️ Strategy 1: Enhanced browser scraping');
+        
+        let browser = null;
+        let context = null;
+        let page = null;
+
+        try {
+            browser = await launchBrowser();
+            
+            // Ultra-stealth configuration
+            const contextOptions = {
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                viewport: { 
+                    width: 1920 + Math.floor(Math.random() * 100), 
+                    height: 1080 + Math.floor(Math.random() * 100) 
+                },
+                extraHTTPHeaders: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Referer': 'https://animepahe.ru/',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1'
+                },
+                locale: 'en-US',
+                timezoneId: 'America/New_York',
+                permissions: ['geolocation'],
+                geolocation: { latitude: 40.7128, longitude: -74.0060 },
+                colorScheme: 'light'
+            };
+
+            context = await browser.newContext(contextOptions);
+            context.setDefaultTimeout(60000);
+            
+            page = await context.newPage();
+
+            // Advanced stealth setup
+            await page.addInitScript(() => {
+                // Remove webdriver traces
+                delete navigator.__proto__.webdriver;
+                
+                // Override plugins
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [
+                        { name: 'Chrome PDF Plugin', length: 1, filename: 'internal-pdf-viewer' },
+                        { name: 'Chrome PDF Viewer', length: 1, filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai' },
+                        { name: 'Native Client', length: 1, filename: 'internal-nacl-plugin' }
+                    ],
+                });
+                
+                // Override languages
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['en-US', 'en'],
+                });
+                
+                // Override webgl
+                const getParameter = WebGLRenderingContext.prototype.getParameter;
+                WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                    if (parameter === 37445) return 'Intel Inc.';
+                    if (parameter === 37446) return 'Intel(R) UHD Graphics 620';
+                    return getParameter.apply(this, arguments);
+                };
+                
+                // Mock chrome runtime
+                window.chrome = {
+                    runtime: {
+                        onConnect: null,
+                        onMessage: null
+                    }
+                };
+                
+                // Override permissions
+                const originalQuery = window.navigator.permissions.query;
+                window.navigator.permissions.query = (parameters) => (
+                    parameters.name === 'notifications' ?
+                        Promise.resolve({ state: Notification.permission }) :
+                        originalQuery(parameters)
+                );
+                
+                // Add realistic screen properties
+                Object.defineProperty(screen, 'availWidth', { value: 1920 });
+                Object.defineProperty(screen, 'availHeight', { value: 1040 });
+                Object.defineProperty(screen, 'colorDepth', { value: 24 });
+                Object.defineProperty(screen, 'pixelDepth', { value: 24 });
+            });
+
+            // Get cookies from our session
+            const cookieHeader = await this.getCookies();
+            if (cookieHeader) {
+                const cookies = cookieHeader.split('; ').map(cookie => {
+                    const [name, value] = cookie.split('=');
+                    return {
+                        name: name.trim(),
+                        value: value.trim(),
+                        domain: '.animepahe.ru',
+                        path: '/'
+                    };
+                });
+                await context.addCookies(cookies);
+                console.log(`🍪 Added ${cookies.length} cookies to browser context`);
+            }
+
+            console.log('🚀 Navigating to play page...');
+            
+            // Navigate with multiple fallbacks
+            try {
+                await page.goto(url, { 
+                    waitUntil: 'domcontentloaded',
+                    timeout: 45000 
+                });
+            } catch (navError) {
+                console.log('First navigation failed, trying with networkidle...');
+                await page.goto(url, { 
+                    waitUntil: 'networkidle',
+                    timeout: 60000 
+                });
+            }
+
+            // Check for challenges and handle them
+            await this.handlePlayPageChallenges(page);
+
+            // Wait for page to fully load
+            await page.waitForTimeout(3000);
+
+            // Try to wait for key elements
+            try {
+                await page.waitForSelector('body', { timeout: 10000 });
+                console.log('✅ Page body loaded');
+            } catch (e) {
+                console.log('⚠️ Body selector timeout, continuing...');
+            }
+
+            // Get final content
+            const content = await page.content();
+            console.log(`📄 Play page content length: ${content.length}`);
+
+            // Validate content
+            if (content.length < 500) {
+                throw new Error('Play page content too short');
+            }
+
+            if (content.includes('DDoS-Guard') || content.includes('checking your browser')) {
+                throw new Error('Still seeing DDoS-Guard challenge');
+            }
+
+            return content;
+
+        } catch (error) {
+            console.error('❌ Browser strategy failed:', error.message);
+            throw error;
+        } finally {
+            try {
+                if (page) await page.close();
+                if (context) await context.close();
+                if (browser) await browser.close();
+            } catch (cleanupError) {
+                console.error('Browser cleanup error:', cleanupError.message);
+            }
+        }
+    }
+
+    // Strategy 2: Advanced axios with residential-like headers
+    async scrapePlayPageWithAxios(url) {
+        console.log('🌐 Strategy 2: Advanced axios scraping');
+        
         const cookieHeader = await this.getCookies();
         
-        console.log('▶️ Scraping play page:', url);
-        
+        // Residential-like headers
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://animepahe.ru/',
+            'Origin': 'https://animepahe.ru',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+            'Cookie': cookieHeader,
+            // Additional residential indicators
+            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'X-Forwarded-For': this.generateRandomIP(),
+            'X-Real-IP': this.generateRandomIP()
+        };
+
+        const axiosConfig = {
+            method: 'GET',
+            url: url,
+            headers: headers,
+            timeout: 30000,
+            maxRedirects: 10,
+            validateStatus: (status) => status < 500
+        };
+
         try {
-            const html = await RequestManager.smartFetch(url, { 
-                cookieHeader, 
-                isApiRequest: false 
-            });
+            const response = await axios(axiosConfig);
             
-            if (!html || html.length < 500) {
-                throw new CustomError('Failed to fetch play page or content too short', 503);
+            if (response.status !== 200) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
+
+            const content = response.data;
             
-            return html;
+            if (typeof content !== 'string' || content.length < 500) {
+                throw new Error('Invalid or too short response');
+            }
+
+            if (content.includes('DDoS-Guard') || content.includes('checking your browser')) {
+                throw new Error('DDoS-Guard challenge detected');
+            }
+
+            return content;
+
         } catch (error) {
-            if (error.response?.status === 404) {
-                throw new CustomError('Anime or episode not found', 404);
-            }
-            console.error('Play page scraping error:', error.message);
-            throw new CustomError(`Failed to scrape play page: ${error.message}`, error.response?.status || 503);
+            console.error('❌ Axios strategy failed:', error.message);
+            throw error;
         }
+    }
+
+    // Strategy 3: Alternative method with different approach
+    async scrapePlayPageWithAlternativeMethod(url) {
+        console.log('🔄 Strategy 3: Alternative method');
+        
+        // Wait 5 seconds then try browser approach again with different settings
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        
+        return await this.scrapePlayPageWithBrowser(url);
+    }
+
+    // Helper method to handle challenges on play pages
+    async handlePlayPageChallenges(page) {
+        try {
+            const title = await page.title();
+            const bodyText = await page.textContent('body').catch(() => '');
+            
+            const hasDDoSGuard = title.toLowerCase().includes('ddos') ||
+                                title.toLowerCase().includes('guard') ||
+                                bodyText.toLowerCase().includes('ddos-guard') ||
+                                bodyText.toLowerCase().includes('checking your browser');
+            
+            if (hasDDoSGuard) {
+                console.log('🛡️ DDoS-Guard challenge detected on play page');
+                
+                // Human-like interaction
+                await page.mouse.move(
+                    Math.random() * 1000 + 100,
+                    Math.random() * 600 + 100
+                );
+                
+                await page.waitForTimeout(2000 + Math.random() * 3000);
+                
+                // Wait for challenge to complete
+                try {
+                    await page.waitForFunction(
+                        () => !document.title.toLowerCase().includes('ddos') && 
+                              !document.title.toLowerCase().includes('guard'),
+                        { timeout: 30000 }
+                    );
+                    console.log('✅ Play page challenge completed');
+                } catch (e) {
+                    console.log('⏰ Challenge timeout on play page');
+                }
+                
+                // Additional wait
+                await page.waitForTimeout(3000);
+            }
+        } catch (error) {
+            console.log('⚠️ Error handling play page challenges:', error.message);
+        }
+    }
+
+    // Helper to generate random IP (for headers)
+    generateRandomIP() {
+        return `${Math.floor(Math.random() * 255) + 1}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
     }
 
     async scrapeIframe(url) {
