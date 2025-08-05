@@ -1,0 +1,15 @@
+[phases.setup]
+nixPkgs = ["nodejs", "corepack", "curl", "wget"]
+
+[phases.install]
+cmds = [
+  "npm install",
+  "npx playwright install-deps",
+  "npx playwright install"
+]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "npm start"
