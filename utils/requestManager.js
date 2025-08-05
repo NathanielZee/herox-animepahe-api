@@ -66,6 +66,38 @@ class RequestManager {
         }
     }
 
+    // Instance methods that mirror static ones for compatibility
+    async fetch(url, cookieHeader, type = 'default') {
+        return await this.smartFetch(url, { cookieHeader, type });
+    }
+
+    async fetchApiData(url, params = {}, cookieHeader = '') {
+        const fullUrl = new URL(url);
+        Object.keys(params).forEach(key => {
+            if (params[key] !== null && params[key] !== undefined) {
+                fullUrl.searchParams.append(key, params[key]);
+            }
+        });
+        return await this.smartFetch(fullUrl.toString(), { cookieHeader });
+    }
+
+    async fetchJson(url) {
+        const html = await this.smartFetch(url);
+        
+        try {
+            const jsonMatch = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i) || 
+                             html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+            
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[1].trim());
+            } else {
+                return JSON.parse(html);
+            }
+        } catch (parseError) {
+            throw new Error(`Failed to parse JSON from ${url}: ${parseError.message}`);
+        }
+    }
+
     getRandomUserAgent() {
         return this.userAgents[Math.floor(Math.random() * this.userAgents.length)];
     }
@@ -543,4 +575,5 @@ class RequestManager {
 }
 
 // Export singleton instance
-module.exports = new RequestManager();
+const requestManagerInstance = new RequestManager();
+module.exports = requestManagerInstance;
