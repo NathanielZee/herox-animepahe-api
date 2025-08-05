@@ -1,3 +1,4 @@
+// scrapers/animepahe.js - Cleaned version without proxy dependencies
 const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
@@ -8,7 +9,7 @@ const os = require('os');
 
 class Animepahe {
     constructor() {
-        // Use /tmp directory for Vercel
+        // Use /tmp directory for serverless environments
         this.cookiesPath = path.join(os.tmpdir(), 'cookies.json');
         this.cookiesRefreshInterval = 14 * 24 * 60 * 60 * 1000; // 14 days
         this.isRefreshingCookies = false;
@@ -39,12 +40,12 @@ class Animepahe {
     }        
     
     async refreshCookies() {
-        console.log('Refreshing cookies...');
+        console.log('🍪 Refreshing cookies using enhanced browser...');
         let browser;
 
         try {
             browser = await launchBrowser();
-            console.log('Browser launched successfully');
+            console.log('✅ Browser launched successfully');
         } catch (error) {
             if (error.message.includes("Executable doesn't exist")) {
                 throw new CustomError('Browser setup required. Please run: npx playwright install', 500);
@@ -53,16 +54,39 @@ class Animepahe {
             throw new CustomError(`Failed to launch browser: ${error.message}`, 500);
         }
 
-        const context = await browser.newContext();
+        const context = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport: { width: 1366, height: 768 }
+        });
+        
         const page = await context.newPage(); 
 
         try {
+            console.log('🌐 Navigating to AnimePahe...');
             await page.goto(Config.getUrl('home'), {
-                waitUntil: 'networkidle',
+                waitUntil: 'domcontentloaded',
                 timeout: 30000,
             });
 
-            await page.waitForTimeout(5000);
+            // Check for DDoS-Guard challenge
+            const title = await page.title();
+            if (title.includes('DDoS') || title.includes('Guard')) {
+                console.log('🛡️ DDoS-Guard challenge detected during cookie refresh');
+                await page.waitForTimeout(10000); // Wait longer for challenge
+                
+                // Wait for challenge to complete
+                try {
+                    await page.waitForFunction(
+                        () => !document.title.includes('DDoS') && !document.title.includes('Guard'),
+                        { timeout: 20000 }
+                    );
+                    console.log('✅ DDoS-Guard challenge completed');
+                } catch (e) {
+                    console.log('⏰ Challenge timeout, continuing...');
+                }
+            }
+
+            await page.waitForTimeout(3000);
 
             const cookies = await context.cookies();
             if (!cookies || cookies.length === 0) {
@@ -77,7 +101,7 @@ class Animepahe {
             await fs.mkdir(path.dirname(this.cookiesPath), { recursive: true });
             await fs.writeFile(this.cookiesPath, JSON.stringify(cookieData, null, 2));
 
-            console.log('Cookies refreshed successfully');
+            console.log(`✅ Cookies refreshed successfully (${cookies.length} cookies stored)`);
         } catch (error) {
             console.error('Cookie refresh error:', error);
             throw new CustomError(`Failed to refresh cookies: ${error.message}`, 503);
@@ -92,15 +116,16 @@ class Animepahe {
         // If user provided cookies directly, use them
         if (userProvidedCookies) {
             if (typeof userProvidedCookies === 'string' && userProvidedCookies.trim()) {
-                console.log('Using user-provided cookies');
+                console.log('🍪 Using user-provided cookies');
                 return userProvidedCookies.trim();
             } else {
                 throw new CustomError('Invalid user-provided cookies format', 400);
             }
         }
-        console.log('checking Config for cookies...');
+        
+        console.log('🔍 Checking Config for cookies...');
         if (Config.cookies && Config.cookies.trim()) {
-            console.log('Cookies found! Using cookies from Config');
+            console.log('✅ Using cookies from Config');
             return Config.cookies.trim();
         }
 
@@ -109,7 +134,8 @@ class Animepahe {
         try {
             cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
         } catch (error) {
-            // No cookies: must block and refresh
+            // No cookies: must refresh
+            console.log('🔄 No stored cookies found, refreshing...');
             await this.refreshCookies();
             cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
         }
@@ -117,6 +143,7 @@ class Animepahe {
         // Check if cookies are stale
         const ageInMs = Date.now() - cookieData.timestamp;
         if (ageInMs > this.cookiesRefreshInterval && !this.isRefreshingCookies) {
+            console.log('🔄 Cookies are stale, refreshing in background...');
             this.isRefreshingCookies = true;
             this.refreshCookies()
                 .catch(err => console.error('Background cookie refresh failed:', err))
@@ -135,10 +162,26 @@ class Animepahe {
         try {
             const cookieHeader = await this.getCookies(userProvidedCookies);
             const url = new URL(endpoint, Config.getUrl('home')).toString();
-            return await RequestManager.fetchApiData(url, params, cookieHeader);
+            console.log('🔗 API request to:', url);
+            
+            // Use the enhanced RequestManager
+            const response = await RequestManager.fetchApiData(url, params, cookieHeader);
+            
+            // Try to parse as JSON
+            if (typeof response === 'string') {
+                try {
+                    return JSON.parse(response);
+                } catch (e) {
+                    // If not JSON, return raw response
+                    return response;
+                }
+            }
+            
+            return response;
         } catch (error) {
-            // Only retry with automatic cookies if user didn't provide cookies
+            // Only retry with fresh cookies if user didn't provide cookies
             if (!userProvidedCookies && (error.response?.status === 401 || error.response?.status === 403)) {
+                console.log('🔄 API request failed, refreshing cookies and retrying...');
                 await this.refreshCookies();
                 return this.fetchApiData(endpoint, params, userProvidedCookies);
             }
@@ -146,7 +189,7 @@ class Animepahe {
         }
     }
 
-    // API Methods - Fixed parameter passing
+    // API Methods
     async fetchAiringData(page = 1, userProvidedCookies = null) {
         return this.fetchApiData('/api', { m: 'airing', page }, userProvidedCookies);
     }
@@ -169,7 +212,7 @@ class Animepahe {
         return this.fetchApiData('/api', { m: 'release', id, sort, page }, userProvidedCookies);
     }
 
-    // Scraping Methods
+    // Scraping Methods using enhanced RequestManager
     async scrapeAnimeInfo(animeId) {
         if (!animeId) {
             throw new CustomError('Anime ID is required', 400);
@@ -177,6 +220,8 @@ class Animepahe {
 
         const url = `${Config.getUrl('animeInfo')}${animeId}`;
         const cookieHeader = await this.getCookies();
+        
+        console.log('🎬 Scraping anime info:', url);
         const html = await RequestManager.fetch(url, cookieHeader);
 
         if (!html) {
@@ -192,6 +237,8 @@ class Animepahe {
             : `${Config.getUrl('animeList')}`;
 
         const cookieHeader = await this.getCookies();
+        
+        console.log('📋 Scraping anime list:', url);
         const html = await RequestManager.fetch(url, cookieHeader);
 
         if (!html) {
@@ -208,6 +255,8 @@ class Animepahe {
 
         const url = Config.getUrl('play', id, episodeId);
         const cookieHeader = await this.getCookies();
+        
+        console.log('▶️ Scraping play page:', url);
         
         try {
             const html = await RequestManager.fetch(url, cookieHeader);
@@ -229,6 +278,8 @@ class Animepahe {
         }
 
         const cookieHeader = await this.getCookies();
+        
+        console.log('🖼️ Scraping iframe:', url);
         const html = await RequestManager.fetch(url, cookieHeader);
 
         if (!html) {
@@ -236,9 +287,12 @@ class Animepahe {
         }
 
         return html;
-    }    async getData(type, params, preferFetch = true) {
+    }    
+
+    async getData(type, params, preferFetch = true) {
         try {
             if (preferFetch) {
+                console.log(`📡 Fetching ${type} data via API...`);
                 switch (type) {
                     case 'airing':
                         return await this.fetchAiringData(params.page || 1);
@@ -250,6 +304,7 @@ class Animepahe {
                         return await this.fetchAnimeRelease(params.animeId, params.sort, params.page);
                 }
             } else {
+                console.log(`🕸️ Scraping ${type} data via HTML...`);
                 switch (type) {
                     case 'animeList':
                         return await this.scrapeAnimeList(params.tag1, params.tag2);
@@ -266,13 +321,16 @@ class Animepahe {
         } catch (error) {
             if (error instanceof CustomError) throw error;
 
+            console.error(`❌ ${type} data fetch failed:`, error.message);
+
             // If we have an HTTP error response, use its status code
             if (error.response?.status) {
                 throw new CustomError(error.message || 'Request failed', error.response.status);
             }
 
-            // Try fallback if primary method fails
+            // Try fallback if primary method fails (API -> Scraping)
             if (preferFetch) {
+                console.log(`🔄 API failed, trying scraping fallback for ${type}...`);
                 return this.getData(type, params, false);
             }
             
