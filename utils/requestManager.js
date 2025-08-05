@@ -1,4 +1,4 @@
-// utils/requestManager.js - Ultra-Strong DDoS-Guard Bypass System
+// utils/requestManager.js - Fixed version with proper API/HTML detection
 const { launchBrowser } = require('./browser');
 const cheerio = require('cheerio');
 const axios = require('axios');
@@ -19,7 +19,6 @@ class RequestManager {
         this.currentUA = this.getRandomUserAgent();
         this.requestCount = 0;
         this.lastRequestTime = 0;
-        this.ddosGuardSessions = new Map();
     }
 
     // Static instance for backward compatibility
@@ -45,7 +44,10 @@ class RequestManager {
                 fullUrl.searchParams.append(key, params[key]);
             }
         });
-        return await instance.smartFetch(fullUrl.toString(), { cookieHeader });
+        return await instance.smartFetch(fullUrl.toString(), { 
+            cookieHeader, 
+            isApiRequest: true 
+        });
     }
 
     static async fetchJson(url) {
@@ -78,7 +80,10 @@ class RequestManager {
                 fullUrl.searchParams.append(key, params[key]);
             }
         });
-        return await this.smartFetch(fullUrl.toString(), { cookieHeader });
+        return await this.smartFetch(fullUrl.toString(), { 
+            cookieHeader, 
+            isApiRequest: true 
+        });
     }
 
     async fetchJson(url) {
@@ -108,15 +113,39 @@ class RequestManager {
         console.log('🔄 Session rotated - New UA:', this.currentUA.substring(0, 50) + '...');
     }
 
-    // Advanced DDoS-Guard detection
-    isDDoSGuardChallenge(html, url) {
-        if (!html || typeof html !== 'string') return true;
+    // FIXED: Proper DDoS-Guard detection that distinguishes between API and HTML responses
+    isDDoSGuardChallenge(response, url, isApiRequest = false) {
+        if (!response) return true;
         
         const domain = new URL(url).hostname;
         
+        // For API requests, check if we got JSON data
+        if (isApiRequest) {
+            // If it's a string that looks like JSON, it's probably good
+            if (typeof response === 'string') {
+                try {
+                    const parsed = JSON.parse(response);
+                    // Valid JSON with expected structure means no challenge
+                    if (parsed && (parsed.data || parsed.total !== undefined || Array.isArray(parsed))) {
+                        console.log('✅ Valid API JSON response detected');
+                        return false;
+                    }
+                } catch (e) {
+                    // Not JSON, check if it's HTML challenge
+                }
+            } else if (typeof response === 'object') {
+                // Already parsed JSON object - definitely not a challenge
+                console.log('✅ Valid API object response detected');
+                return false;
+            }
+        }
+
+        // For HTML responses or failed JSON parsing, check challenge indicators
+        const responseText = typeof response === 'string' ? response : JSON.stringify(response);
+        const lowerResponse = responseText.toLowerCase();
+        
         // Comprehensive DDoS-Guard indicators
         const ddosIndicators = [
-            'DDoS-Guard',
             'ddos-guard',
             'checking your browser',
             'please wait while we verify',
@@ -125,53 +154,45 @@ class RequestManager {
             'security check',
             'anti-bot verification',
             'challenge-platform',
-            'cf-challenge',
-            'ray id:',
-            'cloudflare',
             'just a moment',
             'enable javascript and cookies',
             'this process is automatic',
-            'please allow up to 5 seconds',
-            'ddos protection by',
-            '__cf_bm',
-            '_cfuvid',
-            'cf_clearance'
+            'please allow up to 5 seconds'
         ];
 
-        const lowerHtml = html.toLowerCase();
         const hasIndicators = ddosIndicators.some(indicator => 
-            lowerHtml.includes(indicator.toLowerCase())
+            lowerResponse.includes(indicator)
         );
 
         // Check for challenge page patterns
         const challengePatterns = [
             /<title[^>]*>(?:just a moment|checking|verifying|ddos|guard|security)/i,
-            /window\._cf_chl_/i,
             /ddosguard/i,
             /challenge-form/i,
             /check.*browser/i
         ];
 
-        const hasPatterns = challengePatterns.some(pattern => pattern.test(html));
+        const hasPatterns = challengePatterns.some(pattern => pattern.test(responseText));
 
         // Check response length (challenge pages are usually short)
-        const isShortResponse = html.length < 2000 && !html.includes('<!DOCTYPE html>');
+        const isShortResponse = responseText.length < 1000;
         
         // Check for actual content indicators
-        const hasRealContent = html.includes('<main>') || 
-                              html.includes('class="content"') ||
-                              html.includes('animepahe') ||
-                              html.length > 10000;
+        const hasRealContent = responseText.includes('<main>') || 
+                              responseText.includes('class="content"') ||
+                              responseText.includes('animepahe') ||
+                              responseText.length > 5000;
 
-        const isBlocked = (hasIndicators || hasPatterns || isShortResponse) && !hasRealContent;
+        const isBlocked = (hasIndicators || hasPatterns) && (!hasRealContent || isShortResponse);
         
         if (isBlocked) {
             console.log(`🚫 DDoS-Guard challenge detected for ${domain}:`, {
                 hasIndicators,
                 hasPatterns,
                 isShortResponse,
-                responseLength: html.length,
-                hasRealContent
+                responseLength: responseText.length,
+                hasRealContent,
+                isApiRequest
             });
         }
 
@@ -179,7 +200,7 @@ class RequestManager {
     }
 
     // Enhanced headers with fingerprint randomization
-    generateStealthHeaders(url, cookies = '') {
+    generateStealthHeaders(url, cookies = '', isApiRequest = false) {
         const domain = new URL(url).hostname;
         
         // Rotate UA every 20 requests
@@ -189,19 +210,26 @@ class RequestManager {
         
         const headers = {
             'User-Agent': this.currentUA,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Language': 'en-US,en;q=0.9,ja;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
             'DNT': '1',
             'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
             'Cache-Control': 'max-age=0',
             'Pragma': 'no-cache'
         };
+
+        // Different headers for API vs HTML requests
+        if (isApiRequest) {
+            headers['Accept'] = 'application/json, text/plain, */*';
+            headers['X-Requested-With'] = 'XMLHttpRequest';
+        } else {
+            headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7';
+            headers['Upgrade-Insecure-Requests'] = '1';
+            headers['Sec-Fetch-Dest'] = 'document';
+            headers['Sec-Fetch-Mode'] = 'navigate';
+            headers['Sec-Fetch-Site'] = 'none';
+            headers['Sec-Fetch-User'] = '?1';
+        }
 
         // Add Chrome-specific headers
         if (this.currentUA.includes('Chrome')) {
@@ -213,13 +241,12 @@ class RequestManager {
         // Add appropriate referer
         if (domain.includes('animepahe')) {
             headers['Referer'] = 'https://animepahe.ru/';
-            headers['Origin'] = 'https://animepahe.ru';
-        } else if (domain.includes('kwik')) {
-            headers['Referer'] = 'https://animepahe.ru/';
-            headers['Origin'] = 'https://kwik.si';
+            if (isApiRequest) {
+                headers['Origin'] = 'https://animepahe.ru';
+            }
         }
 
-        // Add session cookies
+        // Add cookies
         if (cookies) {
             headers['Cookie'] = cookies;
         } else if (this.sessionCookies.has(domain)) {
@@ -233,11 +260,11 @@ class RequestManager {
     // Intelligent delay system
     async smartDelay(attempt = 1) {
         const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-        const baseDelay = Math.max(800 + Math.random() * 400, 1200 - timeSinceLastRequest);
+        const baseDelay = Math.max(300 + Math.random() * 200, 500 - timeSinceLastRequest);
         
         // Exponential backoff for retries
         const retryMultiplier = Math.pow(1.5, attempt - 1);
-        const delay = Math.min(baseDelay * retryMultiplier, 8000);
+        const delay = Math.min(baseDelay * retryMultiplier, 5000);
         
         if (delay > 0) {
             console.log(`⏱️ Smart delay: ${Math.round(delay)}ms`);
@@ -247,12 +274,13 @@ class RequestManager {
         this.lastRequestTime = Date.now();
     }
 
-    // Super-enhanced axios request with anti-detection
+    // FIXED: Enhanced axios request with proper API handling
     async enhancedAxiosRequest(url, options = {}) {
         const domain = new URL(url).hostname;
         const cookies = options.cookieHeader || '';
+        const isApiRequest = options.isApiRequest || false;
         
-        const headers = this.generateStealthHeaders(url, cookies);
+        const headers = this.generateStealthHeaders(url, cookies, isApiRequest);
         
         const axiosConfig = {
             method: 'GET',
@@ -261,8 +289,8 @@ class RequestManager {
                 ...headers,
                 ...options.headers
             },
-            timeout: 25000,
-            maxRedirects: 8,
+            timeout: 20000,
+            maxRedirects: 5,
             validateStatus: (status) => status < 500,
             ...options.axiosConfig
         };
@@ -298,7 +326,7 @@ class RequestManager {
         }
     }
 
-    // Ultimate DDoS-Guard solver using browser automation
+    // Browser solver for HTML pages only
     async solveDDoSGuardChallenge(url, options = {}) {
         console.log('🛡️ Starting DDoS-Guard challenge solver for:', url);
         
@@ -307,7 +335,6 @@ class RequestManager {
         let page = null;
 
         try {
-            // Launch browser with enhanced stealth
             browser = await launchBrowser();
             
             const contextOptions = {
@@ -320,7 +347,6 @@ class RequestManager {
                     'Accept-Language': 'en-US,en;q=0.9',
                     'Accept-Encoding': 'gzip, deflate, br'
                 },
-                // Add some entropy to avoid detection
                 locale: 'en-US',
                 timezoneId: 'America/New_York'
             };
@@ -332,10 +358,8 @@ class RequestManager {
 
             // Ultra-stealth browser setup
             await page.addInitScript(() => {
-                // Remove webdriver traces
                 delete navigator.__proto__.webdriver;
                 
-                // Mock plugins
                 Object.defineProperty(navigator, 'plugins', {
                     get: () => [
                         { name: 'Chrome PDF Plugin', length: 1 },
@@ -344,12 +368,10 @@ class RequestManager {
                     ],
                 });
                 
-                // Mock languages
                 Object.defineProperty(navigator, 'languages', {
                     get: () => ['en-US', 'en'],
                 });
                 
-                // Mock webgl
                 const getParameter = WebGLRenderingContext.prototype.getParameter;
                 WebGLRenderingContext.prototype.getParameter = function(parameter) {
                     if (parameter === 37445) return 'Intel Inc.';
@@ -357,23 +379,17 @@ class RequestManager {
                     return getParameter.apply(this, arguments);
                 };
                 
-                // Mock chrome runtime
                 window.chrome = { runtime: {} };
-                
-                // Add realistic screen properties
-                Object.defineProperty(screen, 'availWidth', { value: 1366 });
-                Object.defineProperty(screen, 'availHeight', { value: 728 });
             });
 
             console.log('🚀 Navigating to target URL...');
             
-            // Navigate with realistic timing
             await page.goto(url, { 
                 waitUntil: 'domcontentloaded',
                 timeout: 30000 
             });
 
-            // Check for challenge immediately
+            // Check for challenge
             let challengeDetected = false;
             try {
                 const title = await page.title();
@@ -385,20 +401,14 @@ class RequestManager {
                                   bodyText.toLowerCase().includes('ddos-guard') ||
                                   bodyText.toLowerCase().includes('checking your browser');
                 
-                console.log('🔍 Challenge detection:', {
-                    title: title.substring(0, 100),
-                    challengeDetected,
-                    bodyTextLength: bodyText.length
-                });
-                
             } catch (e) {
                 console.log('⚠️ Could not check for challenge immediately');
             }
 
             if (challengeDetected) {
-                console.log('🛡️ DDoS-Guard challenge confirmed - executing human-like solver...');
+                console.log('🛡️ DDoS-Guard challenge confirmed - waiting for completion...');
                 
-                // Human-like behavior: move mouse randomly
+                // Human-like behavior
                 try {
                     await page.mouse.move(
                         Math.random() * 800 + 200,
@@ -409,51 +419,22 @@ class RequestManager {
                     console.log('Mouse movement failed, continuing...');
                 }
 
-                // Wait for challenge to complete - multiple strategies
-                const solveStrategies = [
-                    // Strategy 1: Wait for title change
-                    () => page.waitForFunction(
+                // Wait for challenge completion
+                try {
+                    await page.waitForFunction(
                         () => !document.title.toLowerCase().includes('ddos') && 
                               !document.title.toLowerCase().includes('guard') &&
                               !document.title.toLowerCase().includes('checking'),
                         { timeout: 25000 }
-                    ),
-                    
-                    // Strategy 2: Wait for body content change
-                    () => page.waitForFunction(
-                        () => {
-                            const body = document.body.textContent.toLowerCase();
-                            return !body.includes('ddos-guard') && 
-                                   !body.includes('checking your browser') &&
-                                   body.length > 1000;
-                        },
-                        { timeout: 25000 }
-                    ),
-                    
-                    // Strategy 3: Wait for specific content
-                    () => page.waitForSelector('main, .content, #content', { timeout: 20000 }),
-                    
-                    // Strategy 4: Simple timeout
-                    () => page.waitForTimeout(15000)
-                ];
-
-                let solveSuccess = false;
-                for (let i = 0; i < solveStrategies.length && !solveSuccess; i++) {
-                    try {
-                        console.log(`🧩 Trying solve strategy ${i + 1}/${solveStrategies.length}...`);
-                        await solveStrategies[i]();
-                        solveSuccess = true;
-                        console.log(`✅ Challenge solve strategy ${i + 1} successful!`);
-                    } catch (e) {
-                        console.log(`❌ Strategy ${i + 1} failed, trying next...`);
-                    }
+                    );
+                    console.log('✅ Challenge completed!');
+                } catch (e) {
+                    console.log('⏰ Challenge timeout, continuing...');
                 }
 
-                // Additional wait for any redirects
                 await page.waitForTimeout(2000);
             }
 
-            // Get final content
             const finalContent = await page.content();
             const finalUrl = page.url();
             
@@ -464,15 +445,11 @@ class RequestManager {
             });
 
             // Verify we got real content
-            if (this.isDDoSGuardChallenge(finalContent, finalUrl)) {
+            if (this.isDDoSGuardChallenge(finalContent, finalUrl, false)) {
                 throw new Error('Challenge solving failed - still seeing DDoS-Guard page');
             }
 
-            if (finalContent.length < 1000) {
-                throw new Error('Content too short - possible incomplete load');
-            }
-
-            // Extract and store cookies for future requests
+            // Extract cookies
             const cookies = await context.cookies();
             if (cookies.length > 0) {
                 const domain = new URL(url).hostname;
@@ -480,11 +457,6 @@ class RequestManager {
                     .map(c => `${c.name}=${c.value}`)
                     .join('; ');
                 this.sessionCookies.set(domain, cookieHeader);
-                this.ddosGuardSessions.set(domain, {
-                    cookies: cookieHeader,
-                    timestamp: Date.now(),
-                    userAgent: this.currentUA
-                });
                 console.log(`🍪 Extracted ${cookies.length} cookies for future use`);
             }
 
@@ -505,59 +477,65 @@ class RequestManager {
         }
     }
 
-    // Main smart fetch method
+    // FIXED: Main smart fetch method with proper API/HTML handling
     async smartFetch(url, options = {}) {
-        const maxAttempts = 4;
+        const maxAttempts = 3;
         let lastError = null;
+        const isApiRequest = options.isApiRequest || false;
         
-        console.log('🎯 SmartFetch starting for:', url);
+        console.log(`🎯 SmartFetch starting for: ${url} (API: ${isApiRequest})`);
         
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 console.log(`🚀 Attempt ${attempt}/${maxAttempts}`);
                 
-                // Smart delay between attempts
                 if (attempt > 1) {
                     await this.smartDelay(attempt);
                 }
 
-                // Try enhanced axios first (faster)
+                // Try axios first
                 console.log('⚡ Trying enhanced axios request...');
                 const axiosResult = await this.enhancedAxiosRequest(url, options);
                 
-                if (axiosResult.status === 200 && !this.isDDoSGuardChallenge(axiosResult.data, url)) {
-                    console.log(`✅ Axios success on attempt ${attempt}`);
-                    return axiosResult.data;
+                // FIXED: Check response properly based on request type
+                if (axiosResult.status >= 200 && axiosResult.status < 300) {
+                    if (!this.isDDoSGuardChallenge(axiosResult.data, url, isApiRequest)) {
+                        console.log(`✅ Axios success on attempt ${attempt}`);
+                        return axiosResult.data;
+                    } else {
+                        console.log(`🚫 DDoS-Guard challenge detected, using browser solver...`);
+                    }
+                } else {
+                    console.log(`🚫 Axios failed with status: ${axiosResult.status}`);
                 }
                 
-                console.log(`🚫 Axios blocked/failed (status: ${axiosResult.status}), using browser solver...`);
-                
-                // Use browser solver for DDoS-Guard challenges
-                const browserResult = await this.solveDDoSGuardChallenge(url, options);
-                
-                if (!this.isDDoSGuardChallenge(browserResult, url)) {
-                    console.log(`✅ Browser solver success on attempt ${attempt}`);
-                    return browserResult;
+                // Only use browser solver for HTML pages, not API endpoints
+                if (!isApiRequest) {
+                    const browserResult = await this.solveDDoSGuardChallenge(url, options);
+                    
+                    if (!this.isDDoSGuardChallenge(browserResult, url, false)) {
+                        console.log(`✅ Browser solver success on attempt ${attempt}`);
+                        return browserResult;
+                    }
+                } else {
+                    // For API requests, if axios failed, it's likely a real error
+                    throw new CustomError(`API request failed with status: ${axiosResult.status}`, axiosResult.status);
                 }
-                
-                throw new Error('Browser solver still returned challenge page');
                 
             } catch (error) {
                 console.log(`❌ Attempt ${attempt} failed:`, error.message);
                 lastError = error;
                 
-                // Don't retry on 404 or auth errors
-                if (error.response?.status === 404 || error.response?.status === 401) {
+                // Don't retry on certain errors
+                if (error.response?.status === 404 || 
+                    error.response?.status === 401 || 
+                    error.response?.status === 400) {
                     throw error;
                 }
                 
-                // For last attempt, throw the error
                 if (attempt === maxAttempts) {
                     break;
                 }
-                
-                // Progressive delay increase
-                console.log(`⏳ Waiting before retry...`);
             }
         }
         
@@ -569,8 +547,41 @@ class RequestManager {
 
     // Utility method for scraping with Cheerio
     async scrapeWithCheerio(url, options = {}) {
-        const html = await this.smartFetch(url, options);
+        const html = await this.smartFetch(url, { ...options, isApiRequest: false });
         return cheerio.load(html);
+    }
+
+    // Simple delay utility
+    static async delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Simple retry utility
+    static async retry(fn, maxRetries = 3, baseDelay = 1000) {
+        let lastError;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return await fn();
+            } catch (error) {
+                lastError = error;
+                
+                if (error?.response?.status === 404 || 
+                    error?.response?.status === 401) {
+                    throw error;
+                }
+                
+                if (attempt === maxRetries) {
+                    throw error;
+                }
+                
+                const delay = baseDelay * Math.pow(2, attempt - 1);
+                console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
+                await this.delay(delay);
+            }
+        }
+        
+        throw lastError;
     }
 }
 
