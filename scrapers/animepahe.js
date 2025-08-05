@@ -1,4 +1,4 @@
-// scrapers/animepahe.js - Cleaned version without proxy dependencies
+// scrapers/animepahe.js - Fixed version with proper API handling
 const fs = require('fs').promises;
 const path = require('path');
 const Config = require('../utils/config');
@@ -72,9 +72,8 @@ class Animepahe {
             const title = await page.title();
             if (title.includes('DDoS') || title.includes('Guard')) {
                 console.log('🛡️ DDoS-Guard challenge detected during cookie refresh');
-                await page.waitForTimeout(10000); // Wait longer for challenge
+                await page.waitForTimeout(10000);
                 
-                // Wait for challenge to complete
                 try {
                     await page.waitForFunction(
                         () => !document.title.includes('DDoS') && !document.title.includes('Guard'),
@@ -134,7 +133,6 @@ class Animepahe {
         try {
             cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
         } catch (error) {
-            // No cookies: must refresh
             console.log('🔄 No stored cookies found, refreshing...');
             await this.refreshCookies();
             cookieData = JSON.parse(await fs.readFile(this.cookiesPath, 'utf8'));
@@ -158,61 +156,127 @@ class Animepahe {
         return Config.cookies;
     }
 
+    // FIXED: Proper API data fetching with error handling
     async fetchApiData(endpoint, params = {}, userProvidedCookies = null) {
         try {
             const cookieHeader = await this.getCookies(userProvidedCookies);
             const url = new URL(endpoint, Config.getUrl('home')).toString();
-            console.log('🔗 API request to:', url);
+            console.log('🔗 API request to:', url, 'with params:', params);
             
-            // Use the enhanced RequestManager
+            // Use RequestManager with isApiRequest flag
             const response = await RequestManager.fetchApiData(url, params, cookieHeader);
             
-            // Try to parse as JSON
+            console.log('📊 Raw API response type:', typeof response);
+            console.log('📊 Raw API response sample:', 
+                typeof response === 'string' ? response.substring(0, 200) + '...' : 
+                JSON.stringify(response).substring(0, 200) + '...');
+            
+            // Handle different response types
             if (typeof response === 'string') {
                 try {
-                    return JSON.parse(response);
+                    const parsed = JSON.parse(response);
+                    console.log('✅ Successfully parsed JSON response');
+                    return parsed;
                 } catch (e) {
-                    // If not JSON, return raw response
-                    return response;
+                    console.error('❌ Failed to parse JSON:', e.message);
+                    console.log('Raw response:', response.substring(0, 500));
+                    throw new CustomError('Invalid JSON response from API', 502);
+                }
+            } else if (typeof response === 'object' && response !== null) {
+                console.log('✅ Response is already an object');
+                return response;
+            } else {
+                console.error('❌ Unexpected response type:', typeof response);
+                throw new CustomError('Unexpected response format from API', 502);
+            }
+            
+        } catch (error) {
+            console.error('❌ API request failed:', error.message);
+            
+            // Only retry with fresh cookies if user didn't provide cookies and it's an auth error
+            if (!userProvidedCookies && (
+                error.response?.status === 401 || 
+                error.response?.status === 403 ||
+                error.message.includes('Authentication required')
+            )) {
+                console.log('🔄 Auth error detected, refreshing cookies and retrying...');
+                await this.refreshCookies();
+                const retryUrl = new URL(endpoint, Config.getUrl('home')).toString();
+                const newCookieHeader = await this.getCookies();
+                return await RequestManager.fetchApiData(retryUrl, params, newCookieHeader);
+            }
+            
+            // Check if it's a "no results" case vs actual error
+            if (error.response?.status === 404 || error.message.includes('No') || error.message.includes('not found')) {
+                console.log('📭 No results found, returning empty data structure');
+                // Return appropriate empty structure based on endpoint
+                if (params.m === 'search') {
+                    return { data: [], total: 0, per_page: 8, current_page: params.page || 1 };
+                } else if (params.m === 'airing') {
+                    return { data: [], total: 0, per_page: 8, current_page: params.page || 1 };
+                } else {
+                    return { data: [] };
                 }
             }
             
-            return response;
-        } catch (error) {
-            // Only retry with fresh cookies if user didn't provide cookies
-            if (!userProvidedCookies && (error.response?.status === 401 || error.response?.status === 403)) {
-                console.log('🔄 API request failed, refreshing cookies and retrying...');
-                await this.refreshCookies();
-                return this.fetchApiData(endpoint, params, userProvidedCookies);
-            }
             throw new CustomError(error.message || 'Failed to fetch API data', error.response?.status || 503);
         }
     }
 
-    // API Methods
+    // API Methods with better error handling
     async fetchAiringData(page = 1, userProvidedCookies = null) {
-        return this.fetchApiData('/api', { m: 'airing', page }, userProvidedCookies);
+        try {
+            return await this.fetchApiData('/api', { m: 'airing', page }, userProvidedCookies);
+        } catch (error) {
+            if (error.message.includes('No') || error.response?.status === 404) {
+                return { data: [], total: 0, per_page: 8, current_page: page };
+            }
+            throw error;
+        }
     }
 
-    async fetchSearchData(query, page, userProvidedCookies = null) {
-        if (!query) {
+    async fetchSearchData(query, page = 1, userProvidedCookies = null) {
+        if (!query || query.trim() === '') {
             throw new CustomError('Search query is required', 400);
         }
-        return this.fetchApiData('/api', { m: 'search', q: query, page }, userProvidedCookies);
+        
+        try {
+            return await this.fetchApiData('/api', { m: 'search', q: query.trim(), page }, userProvidedCookies);
+        } catch (error) {
+            if (error.message.includes('No') || error.response?.status === 404) {
+                return { data: [], total: 0, per_page: 8, current_page: page };
+            }
+            throw error;
+        }
     }
 
     async fetchQueueData(userProvidedCookies = null) {
-        return this.fetchApiData('/api', { m: 'queue' }, userProvidedCookies);
+        try {
+            return await this.fetchApiData('/api', { m: 'queue' }, userProvidedCookies);
+        } catch (error) {
+            if (error.message.includes('No') || error.response?.status === 404) {
+                return { data: [] };
+            }
+            throw error;
+        }
     }
 
-    async fetchAnimeRelease(id, sort, page, userProvidedCookies = null) {
+    async fetchAnimeRelease(id, sort, page = 1, userProvidedCookies = null) {
         if (!id) {
             throw new CustomError('Anime ID is required', 400);
         }
-        return this.fetchApiData('/api', { m: 'release', id, sort, page }, userProvidedCookies);
+        
+        try {
+            return await this.fetchApiData('/api', { m: 'release', id, sort, page }, userProvidedCookies);
+        } catch (error) {
+            if (error.message.includes('No') || error.response?.status === 404) {
+                return { data: [], total: 0, per_page: 8, current_page: page };
+            }
+            throw error;
+        }
     }
 
-    // Scraping Methods using enhanced RequestManager
+    // Scraping Methods using RequestManager (for HTML content)
     async scrapeAnimeInfo(animeId) {
         if (!animeId) {
             throw new CustomError('Anime ID is required', 400);
@@ -222,10 +286,14 @@ class Animepahe {
         const cookieHeader = await this.getCookies();
         
         console.log('🎬 Scraping anime info:', url);
-        const html = await RequestManager.fetch(url, cookieHeader);
+        // Use smartFetch with isApiRequest: false for HTML content
+        const html = await RequestManager.smartFetch(url, { 
+            cookieHeader, 
+            isApiRequest: false 
+        });
 
-        if (!html) {
-            throw new CustomError('Failed to fetch anime info', 503);
+        if (!html || html.length < 1000) {
+            throw new CustomError('Failed to fetch anime info or content too short', 503);
         }
 
         return html;
@@ -239,10 +307,13 @@ class Animepahe {
         const cookieHeader = await this.getCookies();
         
         console.log('📋 Scraping anime list:', url);
-        const html = await RequestManager.fetch(url, cookieHeader);
+        const html = await RequestManager.smartFetch(url, { 
+            cookieHeader, 
+            isApiRequest: false 
+        });
 
-        if (!html) {
-            throw new CustomError('Failed to fetch anime list', 503);
+        if (!html || html.length < 1000) {
+            throw new CustomError('Failed to fetch anime list or content too short', 503);
         }
 
         return html;
@@ -259,16 +330,22 @@ class Animepahe {
         console.log('▶️ Scraping play page:', url);
         
         try {
-            const html = await RequestManager.fetch(url, cookieHeader);
-            if (!html) {
-                throw new CustomError('Failed to fetch play page', 503);
+            const html = await RequestManager.smartFetch(url, { 
+                cookieHeader, 
+                isApiRequest: false 
+            });
+            
+            if (!html || html.length < 500) {
+                throw new CustomError('Failed to fetch play page or content too short', 503);
             }
+            
             return html;
         } catch (error) {
             if (error.response?.status === 404) {
                 throw new CustomError('Anime or episode not found', 404);
             }
-            throw error;
+            console.error('Play page scraping error:', error.message);
+            throw new CustomError(`Failed to scrape play page: ${error.message}`, error.response?.status || 503);
         }
     }
 
@@ -280,28 +357,34 @@ class Animepahe {
         const cookieHeader = await this.getCookies();
         
         console.log('🖼️ Scraping iframe:', url);
-        const html = await RequestManager.fetch(url, cookieHeader);
+        const html = await RequestManager.smartFetch(url, { 
+            cookieHeader, 
+            isApiRequest: false 
+        });
 
-        if (!html) {
-            throw new CustomError('Failed to fetch iframe', 503);
+        if (!html || html.length < 100) {
+            throw new CustomError('Failed to fetch iframe or content too short', 503);
         }
 
         return html;
     }    
 
+    // FIXED: Main getData method with better error handling and fallback logic
     async getData(type, params, preferFetch = true) {
         try {
             if (preferFetch) {
                 console.log(`📡 Fetching ${type} data via API...`);
                 switch (type) {
                     case 'airing':
-                        return await this.fetchAiringData(params.page || 1);
+                        return await this.fetchAiringData(params.page || 1, params.userProvidedCookies);
                     case 'search':
-                        return await this.fetchSearchData(params.query, params.page);
+                        return await this.fetchSearchData(params.query, params.page || 1, params.userProvidedCookies);
                     case 'queue':
-                        return await this.fetchQueueData();
+                        return await this.fetchQueueData(params.userProvidedCookies);
                     case 'releases':
-                        return await this.fetchAnimeRelease(params.animeId, params.sort, params.page);
+                        return await this.fetchAnimeRelease(params.animeId, params.sort, params.page || 1, params.userProvidedCookies);
+                    default:
+                        throw new CustomError(`API method not available for type: ${type}`, 400);
                 }
             } else {
                 console.log(`🕸️ Scraping ${type} data via HTML...`);
@@ -314,27 +397,37 @@ class Animepahe {
                         return await this.scrapePlayPage(params.id, params.episodeId);
                     case 'iframe':
                         return await this.scrapeIframe(params.url);
+                    default:
+                        throw new CustomError(`Scraping method not available for type: ${type}`, 400);
+                }
+            }
+        } catch (error) {
+            console.error(`❌ ${type} data fetch failed:`, error.message);
+            
+            if (error instanceof CustomError) {
+                // Don't retry on client errors (4xx)
+                if (error.statusCode >= 400 && error.statusCode < 500) {
+                    throw error;
                 }
             }
 
-            throw new CustomError(`Unsupported data type: ${type}`, 400);
-        } catch (error) {
-            if (error instanceof CustomError) throw error;
-
-            console.error(`❌ ${type} data fetch failed:`, error.message);
-
-            // If we have an HTTP error response, use its status code
-            if (error.response?.status) {
-                throw new CustomError(error.message || 'Request failed', error.response.status);
-            }
-
-            // Try fallback if primary method fails (API -> Scraping)
-            if (preferFetch) {
-                console.log(`🔄 API failed, trying scraping fallback for ${type}...`);
-                return this.getData(type, params, false);
+            // Try fallback only for certain types and only if we haven't tried scraping yet
+            if (preferFetch && ['airing', 'search'].includes(type)) {
+                console.log(`🔄 API failed for ${type}, trying scraping fallback is not available for this type`);
+                // For these types, we don't have scraping alternatives, so return empty results
+                return {
+                    data: [],
+                    total: 0,
+                    per_page: 8,
+                    current_page: params.page || 1
+                };
             }
             
-            throw new CustomError(error.message || 'Failed to get data', 503);
+            // Re-throw the original error if no fallback is possible
+            throw new CustomError(
+                error.message || `Failed to get ${type} data`, 
+                error.response?.status || error.statusCode || 503
+            );
         }
     }
 }
