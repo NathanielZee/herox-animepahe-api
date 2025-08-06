@@ -1,41 +1,35 @@
-// models/playModel.js - HYBRID VERSION (Server-side for AnimepaHe + Client-side for kwik.si)
+// models/playModel.js - FIXED: Only scrape AnimepaHe, return kwik iframe URLs
 const cheerio = require('cheerio');
 const DataProcessor = require('../utils/dataProcessor');
 const Animepahe = require('../scrapers/animepahe');
 const { getJsVariable } = require('../utils/jsParser');
-const { launchBrowser } = require('../utils/browser');
 const { CustomError } = require('../middleware/errorHandler');
 
 class PlayModel {
     static async getStreamingLinks(id, episodeId) {
-        console.log(`🎬 [HYBRID] Getting streaming links for ${id}/${episodeId}`);
+        console.log(`🎬 [BACKEND] Getting play page data for ${id}/${episodeId}`);
         
-        // STEP 1: Use server-side to get AnimepaHe play page (this works fine)
-        console.log('🌐 [SERVER-SIDE] Fetching AnimepaHe play page...');
+        // STEP 1: Scrape AnimepaHe play page ONLY (this works fine on Railway)
         const results = await Animepahe.getData("play", { id, episodeId }, false);
         
         if (!results) {
             throw new CustomError('Failed to fetch streaming data', 503);
         }
 
-        if (typeof results === 'object' && !results.data) {
-            results.data = [];
-        }    
-        
+        // Handle API response if available
         if (results.data) {
             return DataProcessor.processApiData(results);
         }
         
-        // STEP 2: Server-side scraping of AnimepaHe play page
-        console.log('✅ [SERVER-SIDE] AnimepaHe play page fetched successfully');
-        return this.scrapePlayPageHybrid(results);
+        // STEP 2: Extract iframe URLs from play page HTML
+        return this.extractIframeUrlsOnly(results);
     }
 
-    static async scrapePlayPageHybrid(pageHtml) {
-        console.log('🔄 [HYBRID] Starting hybrid scraping (server + client)...');
+    static async extractIframeUrlsOnly(pageHtml) {
+        console.log('🔄 [BACKEND] Extracting kwik iframe URLs from AnimepaHe play page...');
         
-        // STEP 1: Server-side extraction of play page data (works fine)
-        const [ session, provider ] = ['session', 'provider'].map(v => getJsVariable(pageHtml, v) || null);
+        // Get session and provider info
+        const [session, provider] = ['session', 'provider'].map(v => getJsVariable(pageHtml, v) || null);
 
         if (!session || !provider) {
             throw new CustomError('Episode not found', 404);
@@ -44,6 +38,7 @@ class PlayModel {
         const $ = cheerio.load(pageHtml);        
         
         const playInfo = {
+            // Basic episode info
             ids: {
                 animepahe_id: parseInt($('meta[name="id"]').attr('content'), 10) || null,
                 mal_id: parseInt($('meta[name="anidb"]').attr('content'), 10) || null,
@@ -59,176 +54,61 @@ class PlayModel {
             session,
             provider,
             episode: $('.episode-menu #episodeMenu').text().trim().replace(/\D/g, ''),
+            
+            // MAIN CHANGE: Return kwik iframe URLs instead of trying to scrape them
+            kwik_iframes: [],
+            
+            // Download links still work fine from server
+            downloadLinks: []
         };
 
         try {
-            // STEP 2: Server-side extraction of resolution URLs (works fine)
-            const resolutions = await this.getResolutionList($);
-            console.log(`📊 [SERVER-SIDE] Extracted ${resolutions.length} resolution URLs`);
+            // Extract kwik iframe URLs from resolution menu
+            playInfo.kwik_iframes = await this.extractKwikIframeUrls($);
+            console.log(`📊 [BACKEND] Extracted ${playInfo.kwik_iframes.length} kwik iframe URLs`);
             
-            if (resolutions.length === 0) {
+            if (playInfo.kwik_iframes.length === 0) {
                 throw new CustomError('No streaming resolutions found', 404);
             }
             
-            // STEP 3: Client-side scraping of kwik.si iframes (bypasses Cloudflare)
-            console.log('🌐 [CLIENT-SIDE] Processing kwik.si iframes with browser automation...');
-            const allSources = await this.scrapeIframesWithBrowser(resolutions);
-            playInfo.sources = allSources;
-
-            // STEP 4: Server-side extraction of download links (works fine)
+            // Extract download links (this works fine from server)
             playInfo.downloadLinks = await this.getDownloadLinkList($);
-            console.log(`📥 [SERVER-SIDE] Extracted ${playInfo.downloadLinks.length} download links`);
+            console.log(`📥 [BACKEND] Extracted ${playInfo.downloadLinks.length} download links`);
             
         } catch (error) {
-            console.error('❌ [HYBRID] Error in hybrid scraping:', error.message);
-            throw new CustomError(`Hybrid scraping failed: ${error.message}`, 500);
+            console.error('❌ [BACKEND] Error extracting iframe URLs:', error.message);
+            throw new CustomError(`Failed to extract streaming data: ${error.message}`, 500);
         }
 
-        console.log(`🎉 [HYBRID] Hybrid scraping completed! ${playInfo.sources.length} sources extracted`);
+        console.log(`🎉 [BACKEND] Play page processing completed! Ready for frontend`);
         return playInfo;
     }
 
-    // CLIENT-SIDE: Browser automation for kwik.si iframes ONLY
-    static async scrapeIframesWithBrowser(resolutions) {
-        console.log('🚀 [CLIENT-SIDE] Starting browser for iframe scraping...');
+    // CHANGED: Extract iframe URLs only, don't try to access them
+    static async extractKwikIframeUrls($) {
+        const iframes = [];
         
-        let browser = null;
-        let context = null;
-        let page = null;
-        const sources = [];
-
-        try {
-            browser = await launchBrowser();
+        $('#resolutionMenu button').each((index, element) => {
+            const iframe_url = $(element).attr('data-src');
+            const resolution = $(element).attr('data-resolution');
+            const audio = $(element).attr('data-audio');
             
-            // Stealth browser context
-            context = await browser.newContext({
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                viewport: { width: 1366, height: 768 },
-                extraHTTPHeaders: {
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                }
-            });
-            
-            page = await context.newPage();
-
-            // Anti-detection scripts
-            await page.addInitScript(() => {
-                delete navigator.__proto__.webdriver;
-                Object.defineProperty(navigator, 'plugins', {
-                    get: () => [
-                        { name: 'Chrome PDF Plugin', length: 1 },
-                        { name: 'Chrome PDF Viewer', length: 1 }
-                    ],
+            if (iframe_url) {
+                iframes.push({
+                    iframe_url: iframe_url, // This is what frontend will process
+                    resolution: resolution || null,
+                    isDub: (audio && audio.toLowerCase() === 'eng') || false,
+                    fanSub: $(element).attr('data-fansub') || null,
                 });
-                window.chrome = { runtime: {} };
-            });
-
-            console.log(`🎯 [CLIENT-SIDE] Processing ${resolutions.length} kwik.si iframes...`);
-
-            // Process each iframe with browser
-            for (let i = 0; i < resolutions.length; i++) {
-                const resData = resolutions[i];
-                try {
-                    console.log(`🔍 [CLIENT-SIDE] Processing ${resData.resolution}p iframe (${i + 1}/${resolutions.length})`);
-                    
-                    // Human-like delay
-                    if (i > 0) {
-                        const delay = 1500 + Math.random() * 2000;
-                        await page.waitForTimeout(delay);
-                    }
-                    
-                    console.log(`📍 [CLIENT-SIDE] Navigating to: ${resData.url}`);
-                    
-                    const response = await page.goto(resData.url, { 
-                        waitUntil: 'domcontentloaded',
-                        timeout: 25000 
-                    });
-
-                    console.log(`📊 [CLIENT-SIDE] Response status: ${response.status()}`);
-                    
-                    // Even if we get 403, check if content loaded
-                    await page.waitForTimeout(3000);
-                    
-                    const iframeHtml = await page.content();
-                    
-                    // Check for actual blocking
-                    if (iframeHtml.includes('DDoS-Guard') || 
-                        iframeHtml.includes('checking your browser') ||
-                        iframeHtml.includes('Attention Required! | Cloudflare')) {
-                        console.log(`❌ [CLIENT-SIDE] ${resData.resolution}p blocked by protection`);
-                        continue;
-                    }
-                    
-                    console.log(`🔓 [CLIENT-SIDE] ${resData.resolution}p content accessible (${iframeHtml.length} chars)`);
-                    
-                    // Extract the eval code (same as server-side logic)
-                    const evalMatch = iframeHtml.match(/(eval)(\(f.*?)(\n<\/script>)/s);
-                    if (evalMatch) {
-                        console.log(`🔍 [CLIENT-SIDE] Found eval code for ${resData.resolution}p`);
-                        
-                        const sourceCode = evalMatch[2].replace('eval', '');
-                        
-                        try {
-                            const decodedContent = await page.evaluate((code) => {
-                                return eval(code);
-                            }, sourceCode);
-                            
-                            const m3u8Match = decodedContent.match(/https.*?m3u8/);
-                            if (m3u8Match) {
-                                sources.push({
-                                    url: m3u8Match[0],
-                                    isM3U8: true,
-                                    resolution: resData.resolution,
-                                    isDub: resData.isDub,
-                                    fanSub: resData.fanSub
-                                });
-                                console.log(`✅ [CLIENT-SIDE] Extracted ${resData.resolution}p m3u8: ${m3u8Match[0].substring(0, 50)}...`);
-                            } else {
-                                console.log(`⚠️ [CLIENT-SIDE] No m3u8 found in ${resData.resolution}p decoded content`);
-                                console.log(`📄 [CLIENT-SIDE] Decoded preview:`, decodedContent.substring(0, 200));
-                            }
-                        } catch (evalError) {
-                            console.log(`❌ [CLIENT-SIDE] Eval failed for ${resData.resolution}p:`, evalError.message);
-                        }
-                    } else {
-                        console.log(`⚠️ [CLIENT-SIDE] No eval code found for ${resData.resolution}p`);
-                        console.log(`📄 [CLIENT-SIDE] Content preview:`, iframeHtml.substring(0, 300));
-                    }
-                    
-                } catch (error) {
-                    console.error(`❌ [CLIENT-SIDE] Failed processing ${resData.resolution}p:`, error.message);
-                }
+                
+                console.log(`📋 [BACKEND] Found ${resolution}p iframe: ${iframe_url.substring(0, 50)}...`);
             }
+        });
 
-            console.log(`🎉 [CLIENT-SIDE] Browser iframe scraping completed: ${sources.length}/${resolutions.length} successful`);
-            
-        } catch (error) {
-            console.error('❌ [CLIENT-SIDE] Browser iframe scraping failed:', error.message);
-            throw new CustomError(`Browser iframe scraping failed: ${error.message}`, 503);
-        } finally {
-            try {
-                if (page) await page.close();
-                if (context) await context.close();
-                if (browser) await browser.close();
-                console.log('🔧 [CLIENT-SIDE] Browser cleanup completed');
-            } catch (cleanupError) {
-                console.error('⚠️ [CLIENT-SIDE] Browser cleanup error:', cleanupError.message);
-            }
-        }
-
-        if (sources.length === 0) {
-            throw new CustomError('No streaming sources could be extracted from kwik.si iframes', 404);
-        }
-
-        return sources;
+        return iframes;
     }
 
-    // SERVER-SIDE: These methods work fine with AnimepaHe
+    // This still works fine on server (AnimepaHe download links)
     static async getDownloadLinkList($) {
         const downloadLinks = [];
         
@@ -249,26 +129,6 @@ class PlayModel {
         });
 
         return downloadLinks;
-    }
-
-    static async getResolutionList($) {
-        const resolutions = [];
-        
-        $('#resolutionMenu button').each((index, element) => {
-            const link = $(element).attr('data-src');
-            const resolution = $(element).attr('data-resolution');
-            const audio = $(element).attr('data-audio');
-            if (link) {
-                resolutions.push({
-                    url: link || null,
-                    resolution: resolution || null,
-                    isDub: (audio && audio.toLowerCase() === 'eng') || false,
-                    fanSub: $(element).attr('data-fansub') || null,
-                });
-            }
-        });
-
-        return resolutions;
     }
 }
 
