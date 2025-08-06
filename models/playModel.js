@@ -1,4 +1,4 @@
-// models/playModel.js - Updated to ONLY use client-side scraping
+// models/playModel.js - NEW CLIENT-SIDE VERSION (Replace your current file)
 const ClientScraper = require('../utils/clientScraper');
 const { CustomError } = require('../middleware/errorHandler');
 
@@ -23,5 +23,7 @@ class PlayModel {
         }
     }
 }
+
+module.exports = PlayModel;
 
 module.exports = PlayModel;
